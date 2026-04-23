@@ -1,5 +1,4 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
@@ -8,7 +7,6 @@ import bcrypt from 'bcryptjs';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import cors from 'cors';
-
 import fs from 'fs';
 
 dotenv.config();
@@ -45,8 +43,6 @@ let routesMounted = false;
 
 async function startServer() {
   if (routesMounted) return;
-  
-  console.log('Mounting KTWS Library Server Routes...');
   
   // 1. Core Middlewares
   app.use(cors({ origin: true, credentials: true }));
@@ -284,6 +280,7 @@ async function startServer() {
 
   // 4. Vite / Static (Only in local/standard environments)
   if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
     app.use(vite.middlewares);
   } else {
