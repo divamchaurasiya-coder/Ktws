@@ -22,17 +22,23 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-ktws-library';
 let supabase: SupabaseClient | null = null;
 const getSupabase = () => {
   if (supabase) return supabase;
+  
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
-  if (url && key) {
-    try {
-      supabase = createClient(url, key);
-      return supabase;
-    } catch (e) {
-      console.error('Supabase init error:', e);
-    }
+  
+  if (!url || !key) {
+    console.warn('[SUPABASE] Missing URL or Key. Operations requiring DB will fail.');
+    return null;
   }
-  return null;
+
+  try {
+    supabase = createClient(url, key);
+    console.log('[SUPABASE] Client initialized successfully');
+    return supabase;
+  } catch (e) {
+    console.error('[SUPABASE] Failed to create client:', e);
+    return null;
+  }
 };
 
 // --- App Initialization ---
@@ -210,7 +216,10 @@ app.use((err: any, req: any, res: any, next: any) => {
 
 // Startup Helper
 async function bootstrap() {
-  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  if (process.env.VERCEL) return; // Skip entirely on Vercel
+
+  if (process.env.NODE_ENV !== 'production') {
+    // Dynamic import to avoid bundling Vite in production
     const { createServer } = await import('vite');
     const vite = await createServer({ server: { middlewareMode: true }, appType: 'spa' });
     app.use(vite.middlewares);
