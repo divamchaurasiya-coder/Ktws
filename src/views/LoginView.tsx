@@ -12,30 +12,32 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [dbConnected, setDbConnected] = useState(true);
+  const [dbStatus, setDbStatus] = useState<{ connected: boolean; msg: string }>({ connected: true, msg: '' });
 
   useEffect(() => {
     const checkDb = async () => {
       try {
         const health = await api.auth.health();
-        console.log('Backend Health Status:', health);
-        if (!health.supabase) {
-          setDbConnected(false);
-          const missing = [];
-          if (!health.env.hasUrl) missing.push('SUPABASE_URL');
-          if (!health.env.hasKey) missing.push('SUPABASE_ANON_KEY');
+        console.log('Backend Diagnostic:', health);
+        
+        if (!health.supabase || !health.working) {
+          setDbStatus({ 
+            connected: false, 
+            msg: !health.supabase ? 'Config Missing' : (health.msg || 'Connecting...')
+          });
           
-          if (missing.length > 0) {
-            console.error('Missing Environment Variables on Vercel:', missing.join(', '));
-            setError(`Error 69: Missing ${missing.join(' and ')}`);
+          if (!health.supabase) {
+            setError('Error 69: Dashboard keys not found. Check Vercel Variables.');
           } else {
-            setError('Error 69: Database Connection Failed');
+            setError(`Error 69: ${health.msg}`);
           }
+        } else {
+          setDbStatus({ connected: true, msg: 'Online' });
         }
       } catch (err) {
         console.error('Health Check Failed:', err);
-        setDbConnected(false);
-        setError('Error 69: Backend Unreachable');
+        setDbStatus({ connected: false, msg: 'Unreachable' });
+        setError('Error 69: Cannot talk to Backend Server.');
       }
     };
     checkDb();
@@ -73,10 +75,10 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
             </div>
             <h1 className="text-2xl font-bold text-[#1A1A1A] tracking-tighter">KTWS Library</h1>
             <p className="text-[#64748B] text-sm mt-1">Sign in to manage library</p>
-            {!dbConnected && (
+            {!dbStatus.connected && (
               <div className="mt-4 px-4 py-1.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 border border-orange-200">
                 <DatabaseZap size={12} />
-                Database Offline (69)
+                DB: {dbStatus.msg} (69)
               </div>
             )}
           </div>

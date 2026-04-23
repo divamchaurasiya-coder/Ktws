@@ -64,14 +64,35 @@ async function startServer() {
   const router = express.Router();
 
   // Health check
-  router.get('/health', (req, res) => {
+  router.get('/health', async (req, res) => {
     const client = getSupabase();
+    let dbWorking = false;
+    let dbMsg = 'No Client';
+
+    if (client) {
+      try {
+        const { error } = await client.from('profiles').select('count', { count: 'exact', head: true }).limit(1);
+        if (error) {
+          dbMsg = error.message;
+        } else {
+          dbWorking = true;
+          dbMsg = 'Healthy';
+        }
+      } catch (e: any) {
+        dbMsg = e.message;
+      }
+    }
+
     res.json({ 
       status: 'ok', 
       supabase: !!client,
+      working: dbWorking,
+      msg: dbMsg,
+      timestamp: new Date().toISOString(),
       env: {
         hasUrl: !!(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL),
-        hasKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY)
+        hasKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY),
+        hasJwt: !!process.env.JWT_SECRET
       }
     });
   });
