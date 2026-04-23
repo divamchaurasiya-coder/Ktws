@@ -45,7 +45,11 @@ CREATE TABLE public.books (
   barcode TEXT UNIQUE NOT NULL,
   total_copies INTEGER DEFAULT 1,
   available_copies INTEGER DEFAULT 1,
-  status TEXT DEFAULT 'Available',
+  
+  -- The Status Field (Allowed: Available, Issued, Maintenance, Lost, Archived)
+  status TEXT NOT NULL DEFAULT 'Available' 
+    CHECK (status IN ('Available', 'Issued', 'Maintenance', 'Lost', 'Archived')),
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

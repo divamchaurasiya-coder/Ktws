@@ -161,16 +161,15 @@ export default function HomeView() {
             data.recentActivity.map((activity: any) => (
               <div key={activity.id} className="flex items-center gap-3 pb-3 border-b border-[#F1F5F9]">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg ${
-                  activity.status === 'returned' ? 'bg-[#DCFCE7] text-[#10B981]' : 
                   activity.status === 'overdue' ? 'bg-[#FEE2E2] text-[#EF4444]' : 
                   'bg-[#E0E7FF] text-[#4F46E5]'
                 }`}>
-                  {activity.status === 'returned' ? '↩️' : activity.status === 'overdue' ? '⚠️' : '📖'}
+                  {activity.status === 'overdue' ? '⚠️' : '📖'}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-[#1A1A1A] truncate">{activity.book_title}</p>
                   <p className="text-[11px] text-[#94A3B8]">
-                    {activity.status === 'returned' ? 'Returned by' : 'Issued to'} {activity.student_name} • {format(new Date(activity.issue_date), 'h:mm a')}
+                    Issued to {activity.student_name} • {format(new Date(activity.issue_date), 'h:mm a')}
                   </p>
                 </div>
               </div>
