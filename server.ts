@@ -9,7 +9,9 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import fs from 'fs';
 
-dotenv.config();
+if (!process.env.VERCEL) {
+  dotenv.config();
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,7 +62,7 @@ async function startServer() {
   const router = express.Router();
 
   // Diagnostic Routes
-  router.get('/health', async (req, res) => {
+  const handleHealth = async (req: any, res: any) => {
     const client = getSupabase();
     let dbWorking = false;
     let dbMsg = 'No Client';
@@ -91,10 +93,9 @@ async function startServer() {
         hasJwt: !!process.env.JWT_SECRET
       }
     });
-  });
+  };
 
-  // Dedicated Route for Database Issues Diagnostic
-  router.get('/troubleshoot', async (req, res) => {
+  const handleTroubleshoot = async (req: any, res: any) => {
     const client = getSupabase();
     const checks = {
       supabase_config: !!(process.env.SUPABASE_URL && (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)),
@@ -126,7 +127,12 @@ async function startServer() {
                        connection_error?.includes("invalid input") ? "Check URL format" :
                        !checks.supabase_config ? "Add environment variables in Vercel settings" : "Verify Supabase accessibility"
     });
-  });
+  };
+
+  router.get('/health', handleHealth);
+  router.get('/api/health', handleHealth);
+  router.get('/troubleshoot', handleTroubleshoot);
+  router.get('/api/troubleshoot', handleTroubleshoot);
 
   // Auth Middleware
   const authenticateToken = (req: any, res: any, next: any) => {
@@ -337,6 +343,17 @@ async function startServer() {
   // Mounting at root '/' in serverless mode prevents nested '/api/api' paths
   const mountPath = process.env.VERCEL ? '/' : '/api';
   app.use(mountPath, router);
+  
+  // Global Error Handler
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error('[SERVER MONITOR] Exception Caught:', err);
+    res.status(500).json({ 
+      error: 'KTWS Server Error', 
+      message: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined 
+    });
+  });
+
   routesMounted = true;
 
   // 4. Vite / Static (Only in local/standard environments)
