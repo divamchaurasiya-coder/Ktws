@@ -25,6 +25,16 @@ export default function TransactionsView() {
     }
   };
 
+  const handleQuickReturn = async (barcode: string, studentQR: string) => {
+    if (!confirm('Mark this book as returned?')) return;
+    try {
+      await api.transactions.return({ barcode, studentQR });
+      await fetchTransactions();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   const filteredTransactions = transactions.filter(t => {
     const matchesSearch = 
       t.book_title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -152,9 +162,17 @@ export default function TransactionsView() {
                             <span>Returned: {format(new Date(t.return_date), 'MMM dd, yyyy')}</span>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2 text-[10px] text-orange-600 font-medium">
-                            <Clock size={12} />
-                            <span>Due: {format(new Date(t.due_date), 'MMM dd, yyyy')}</span>
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-2 text-[10px] text-orange-600 font-medium whitespace-nowrap">
+                              <Clock size={12} />
+                              <span>Due: {format(new Date(t.due_date), 'MMM dd, yyyy')}</span>
+                            </div>
+                            <button 
+                              onClick={() => handleQuickReturn(t.book_barcode, t.student_qr)}
+                              className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline whitespace-nowrap"
+                            >
+                              Return Now
+                            </button>
                           </div>
                         )}
                       </div>

@@ -195,9 +195,16 @@ const initializeApp = () => {
   transRouter.get('/', authenticate, async (req, res) => {
     const client = getSupabase();
     if (!client) return res.json([]);
-    const { data, error } = await client.from('transactions').select('*, students(name, class, section), books(title, author, barcode)').order('issue_date', { ascending: false });
+    const { data, error } = await client.from('transactions').select('*, students(name, class, section, qr_code), books(title, author, barcode)').order('issue_date', { ascending: false });
     if (error) return res.status(500).json({ error: error.message });
-    res.json(data.map((t: any) => ({ ...t, student_name: t.students?.name, student_class: `${t.students?.class}-${t.students?.section}`, book_title: t.books?.title })));
+    res.json(data.map((t: any) => ({ 
+      ...t, 
+      student_name: t.students?.name, 
+      student_class: `${t.students?.class}-${t.students?.section}`,
+      student_qr: t.students?.qr_code,
+      book_title: t.books?.title,
+      book_barcode: t.books?.barcode
+    })));
   });
 
   transRouter.post('/issue', authenticate, async (req: any, res: any) => {
@@ -230,7 +237,7 @@ const initializeApp = () => {
 
       await client.from('transactions').update({ status: 'returned', return_date: new Date().toISOString() }).eq('id', trans.id);
       await client.from('books').update({ available_copies: (book.available_copies || 0) + 1 }).eq('id', book.id);
-      res.json({ success: true });
+      res.json({ success: true, message: `Successfully returned "${book.title}" from ${student.name}.` });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { api } from '../lib/api';
 import Scanner from '../components/Scanner';
 import { RotateCcw, User, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -33,6 +33,16 @@ export default function ReturnView() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleManualBook = (e: FormEvent) => {
+    e.preventDefault();
+    if (barcode.trim()) setStep(2);
+  };
+
+  const handleManualStudent = (e: FormEvent) => {
+    e.preventDefault();
+    if (studentQR.trim()) setStep(3);
   };
 
   const reset = () => {
@@ -73,6 +83,27 @@ export default function ReturnView() {
               <p className="text-xs text-gray-500">Scan the barcode of the returning book</p>
             </div>
             <Scanner onScan={handleBookScan} label="Scanning Book Barcode..." />
+
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
+              <div className="relative flex justify-center text-[10px] uppercase font-black text-gray-300 tracking-[0.3em]"><span className="bg-gray-50 px-4">OR ENTER MANUALLY</span></div>
+            </div>
+
+            <form onSubmit={handleManualBook} className="space-y-3">
+              <input 
+                type="text" 
+                placeholder="Type Book ISBN / Barcode..." 
+                value={barcode}
+                onChange={e => setBarcode(e.target.value)}
+                className="w-full px-5 py-4 bg-white border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-orange-600 outline-none shadow-xs"
+              />
+              <button 
+                type="submit"
+                className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold text-xs active:scale-95 transition-transform"
+              >
+                Continue to Student Record
+              </button>
+            </form>
           </motion.div>
         )}
 
@@ -82,21 +113,44 @@ export default function ReturnView() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="space-y-6"
+            className="space-y-4"
           >
             <div className="text-center space-y-2">
-              <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto text-purple-600">
+              <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto text-purple-600 shadow-lg shadow-purple-100/50">
                 <User size={32} />
               </div>
-              <h3 className="text-sm font-bold text-gray-900">Step 2: Scan Student</h3>
-              <p className="text-xs text-gray-500">Scan the student's ID card QR code</p>
+              <h3 className="text-sm font-black text-[#1A1A1A] tracking-tight">Step 2: Scan Student</h3>
+              <p className="text-[11px] text-[#64748B] font-bold uppercase tracking-widest leading-none">Scanning for returning personnel</p>
             </div>
+            
             <Scanner onScan={handleStudentScan} label="Scanning Student QR..." />
+
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
+              <div className="relative flex justify-center text-[10px] uppercase font-black text-gray-300 tracking-[0.3em]"><span className="bg-gray-50 px-4">OR ENTER MANUALLY</span></div>
+            </div>
+
+            <form onSubmit={handleManualStudent} className="space-y-3">
+              <input 
+                type="text" 
+                placeholder="Type Student Enrollment ID..." 
+                value={studentQR}
+                onChange={e => setStudentQR(e.target.value)}
+                className="w-full px-5 py-4 bg-white border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-purple-600 outline-none shadow-xs"
+              />
+              <button 
+                type="submit"
+                className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold text-xs active:scale-95 transition-transform"
+              >
+                Review Return Details
+              </button>
+            </form>
+
             <button 
               onClick={() => setStep(1)}
-              className="w-full text-[10px] uppercase font-bold text-gray-400 tracking-widest text-center"
+              className="w-full text-[10px] uppercase font-black text-[#94A3B8] tracking-[0.2em] pt-4"
             >
-              Back to Book Scan
+              ← Back to Book Identification
             </button>
           </motion.div>
         )}
