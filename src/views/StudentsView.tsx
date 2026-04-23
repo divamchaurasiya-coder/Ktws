@@ -1,8 +1,9 @@
 import { useState, useEffect, FormEvent, useRef, ChangeEvent } from 'react';
 import { api } from '../lib/api';
-import { Users, Plus, X, Search, QrCode, FileUp } from 'lucide-react';
+import { Users, Plus, X, Search, QrCode, FileUp, Book, Calendar, CheckCircle2, Clock } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import Papa from 'papaparse';
+import { format } from 'date-fns';
 
 export default function StudentsView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -11,6 +12,7 @@ export default function StudentsView() {
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>(null);
 
@@ -30,6 +32,19 @@ export default function StudentsView() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStudentClick = async (student: any) => {
+    setDetailLoading(true);
+    setSelectedStudent(student);
+    try {
+      const detail = await api.students.getDetail(student.id);
+      setSelectedStudent(detail);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDetailLoading(false);
     }
   };
 
@@ -164,8 +179,8 @@ export default function StudentsView() {
           filtered.map(student => (
             <div 
               key={student.id} 
-              onClick={() => setSelectedStudent(student)}
-              className="bg-white p-4 rounded-2xl border border-[#F1F5F9] shadow-xs flex items-center gap-4 active:bg-gray-50 transition-colors"
+              onClick={() => handleStudentClick(student)}
+              className="bg-white p-4 rounded-2xl border border-[#F1F5F9] shadow-xs flex items-center gap-4 active:bg-gray-50 transition-colors cursor-pointer"
             >
               <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-[#4F46E5] font-bold text-sm">
                 {student.name.charAt(0)}
@@ -220,50 +235,83 @@ export default function StudentsView() {
         </div>
       )}
 
-      {/* QR Details Modal */}
+      {/* QR & Profile Details Modal */}
       {selectedStudent && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 overflow-y-auto">
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => { setSelectedStudent(null); setIsEditing(false); }} />
-          <div className="relative w-full max-w-sm bg-white rounded-t-[44px] sm:rounded-[40px] shadow-2xl p-10 flex flex-col items-center">
+          <div className="relative w-full max-w-md bg-white rounded-t-[44px] sm:rounded-[40px] shadow-2xl p-6 sm:p-10 flex flex-col items-center my-auto min-h-[70vh]">
             
             {!isEditing ? (
-              <>
-                <div className="w-20 h-20 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#4F46E5] text-3xl font-black mb-6 shadow-lg shadow-[#4F46E5]/10 border-4 border-white">
-                  {selectedStudent.name.charAt(0)}
+              <div className="w-full">
+                <div className="flex flex-col items-center mb-8">
+                  <div className="w-20 h-20 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#4F46E5] text-3xl font-black mb-4 shadow-lg shadow-[#4F46E5]/10 border-4 border-white">
+                    {selectedStudent.name.charAt(0)}
+                  </div>
+                  <h3 className="text-2xl font-black text-[#1A1A1A] mb-1">{selectedStudent.name}</h3>
+                  <p className="text-sm font-bold text-[#64748B] uppercase tracking-widest mb-6">Class {selectedStudent.class}-{selectedStudent.section}</p>
+                  
+                  <div className="p-6 bg-white border-4 border-[#F1F5F9] rounded-[32px] mb-6 shadow-xs flex items-center justify-center">
+                    <QRCode value={selectedStudent.qr_code} size={120} level="H" fgColor="#1A1A1A" />
+                  </div>
+                  
+                  <div className="w-full bg-[#F8FAFC] p-4 rounded-[20px] flex flex-col items-center gap-1 border border-[#F1F5F9]">
+                    <p className="text-[9px] font-black text-[#94A3B8] uppercase tracking-[0.2em]">Student ID Code</p>
+                    <p className="text-md font-black text-[#1A1A1A] tracking-tight">{selectedStudent.qr_code}</p>
+                  </div>
                 </div>
 
-                <h3 className="text-2xl font-black text-[#1A1A1A] mb-1">{selectedStudent.name}</h3>
-                <p className="text-sm font-bold text-[#64748B] uppercase tracking-widest mb-8">Class {selectedStudent.class}-{selectedStudent.section}</p>
-                
-                <div className="p-8 bg-white border-4 border-[#F1F5F9] rounded-[40px] mb-8 shadow-sm flex items-center justify-center">
-                  <QRCode 
-                    value={selectedStudent.qr_code} 
-                    size={160} 
-                    level="H"
-                    fgColor="#1A1A1A"
-                  />
-                </div>
-                
-                <div className="w-full bg-[#F8FAFC] p-5 rounded-[24px] flex flex-col items-center gap-1 mb-10 border border-[#F1F5F9]">
-                  <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-[0.2em]">Regd. Student ID</p>
-                  <p className="text-lg font-black text-[#1A1A1A] tracking-tight">{selectedStudent.qr_code}</p>
+                {/* History Section */}
+                <div className="space-y-4 mb-8">
+                  <h4 className="text-xs font-black text-[#1A1A1A] uppercase tracking-[0.1em] flex items-center gap-2">
+                    <Book size={14} className="text-[#4F46E5]" />
+                    Book History
+                  </h4>
+                  
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+                    {detailLoading ? (
+                      <div className="py-4 text-center text-[#94A3B8] text-[10px] animate-pulse">Loading history...</div>
+                    ) : selectedStudent.history?.length > 0 ? (
+                      selectedStudent.history.map((h: any) => (
+                        <div key={h.id} className="p-3 bg-white border border-[#F1F5F9] rounded-xl flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${h.status === 'returned' ? 'bg-[#DCFCE7] text-[#10B981]' : 'bg-[#EEF2FF] text-[#4F46E5]'}`}>
+                            <Book size={16} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-[#1A1A1A] truncate">{h.book_title}</p>
+                            <div className="flex items-center gap-2 text-[10px] text-[#64748B]">
+                              <span>{format(new Date(h.issue_date), 'MMM dd')}</span>
+                              <span>•</span>
+                              <span className={`font-bold ${h.status === 'returned' ? 'text-[#10B981]' : 'text-[#4F46E5]'}`}>
+                                {h.status === 'returned' ? 'Returned' : 'Currently Issued'}
+                              </span>
+                            </div>
+                          </div>
+                          {h.status === 'returned' ? <CheckCircle2 size={14} className="text-[#10B981]" /> : <Clock size={14} className="text-[#4F46E5]" />}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-8 text-center text-gray-400 text-[10px] italic bg-[#F8FAFC] rounded-2xl border border-dashed border-gray-200">
+                        No books issued yet
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3 w-full">
                   <button 
                     onClick={() => { setSelectedStudent(null); setIsEditing(false); }}
-                    className="py-5 bg-white border border-[#F1F5F9] text-[#64748B] font-bold rounded-2xl active:scale-95 transition-transform"
+                    className="py-4 bg-white border border-[#F1F5F9] text-[#64748B] font-bold rounded-2xl active:scale-95 transition-transform text-sm"
                   >
                     Close
                   </button>
                   <button 
                     onClick={startEditing}
-                    className="py-5 bg-[#4F46E5] text-white font-bold rounded-2xl active:scale-95 transition-transform shadow-lg shadow-[#4F46E5]/20"
+                    className="py-4 bg-[#4F46E5] text-white font-bold rounded-2xl active:scale-95 transition-transform shadow-lg shadow-[#4F46E5]/20 text-sm"
                   >
                     Edit Info
                   </button>
                 </div>
-              </>
+              </div>
             ) : (
               <form onSubmit={handleUpdate} className="w-full space-y-6">
                 <div className="flex justify-between items-center mb-2">

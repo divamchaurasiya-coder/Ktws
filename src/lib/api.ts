@@ -40,6 +40,7 @@ export const api = {
   students: {
     list: () => apiFetch('/api/students'),
     search: (q: string) => apiFetch(`/api/students/search?q=${encodeURIComponent(q)}`),
+    getDetail: (id: string) => apiFetch(`/api/students/${id}`),
     create: (data: any) => apiFetch('/api/students', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => apiFetch(`/api/students/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     bulkCreate: (students: any[]) => apiFetch('/api/students/bulk', { method: 'POST', body: JSON.stringify({ students }) }),

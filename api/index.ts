@@ -129,8 +129,8 @@ const initializeApp = () => {
         client.from('books').select('total_copies'),
         client.from('transactions').select('id', { count: 'exact', head: true }).eq('status', 'issued'),
         client.from('transactions').select('id', { count: 'exact', head: true }).eq('status', 'overdue'),
-        client.from('transactions').select('student_id', { count: 'exact', head: true }),
-        client.from('transactions').select('*, students(name), books(title)').order('issue_date', { ascending: false }).limit(10)
+        client.from('transactions').select('student_id', { count: 'exact', head: true }).neq('status', 'returned'),
+        client.from('transactions').select('*, students(name), books(title)').neq('status', 'returned').order('issue_date', { ascending: false }).limit(10)
       ]);
       res.json({
         stats: {
@@ -199,6 +199,18 @@ const initializeApp = () => {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  studentsRouter.get('/:id', authenticate, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Offline' });
+    try {
+      const { data: student, error: sErr } = await client.from('students').select('*').eq('id', req.params.id).single();
+      if (sErr) throw sErr;
+      const { data: history, error: hErr } = await client.from('transactions').select('*, books(title, author, barcode)').eq('student_id', req.params.id).order('issue_date', { ascending: false });
+      if (hErr) throw hErr;
+      res.json({ ...student, history: history.map((h: any) => ({ ...h, book_title: h.books?.title, book_barcode: h.books?.barcode })) });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // --- SECTION: BOOKS ---
   const booksRouter = Router();
   booksRouter.get('/', authenticate, async (req, res) => {
@@ -247,7 +259,7 @@ const initializeApp = () => {
   transRouter.get('/', authenticate, async (req, res) => {
     const client = getSupabase();
     if (!client) return res.json([]);
-    const { data, error } = await client.from('transactions').select('*, students(name, class, section, qr_code), books(title, author, barcode)').order('issue_date', { ascending: false });
+    const { data, error } = await client.from('transactions').select('*, students(name, class, section, qr_code), books(title, author, barcode)').neq('status', 'returned').order('issue_date', { ascending: false });
     if (error) return res.status(500).json({ error: error.message });
     res.json(data.map((t: any) => ({ 
       ...t, 
@@ -287,10 +299,10 @@ const initializeApp = () => {
       const { data: trans } = await client.from('transactions').select('*').eq('student_id', student.id).eq('book_id', book.id).neq('status', 'returned').limit(1).single();
       if (!trans) throw new Error('No active transaction found for this pair.');
 
-      // Remove the transaction record as requested
-      await client.from('transactions').delete().eq('id', trans.id);
+      // Mark as returned instead of deleting, to maintain student history
+      await client.from('transactions').update({ status: 'returned', return_date: new Date().toISOString() }).eq('id', trans.id);
       await client.from('books').update({ available_copies: (book.available_copies || 0) + 1 }).eq('id', book.id);
-      res.json({ success: true, message: `Successfully returned "${book.title}" from ${student.name}. Record cleared.` });
+      res.json({ success: true, message: `Successfully returned "${book.title}" from ${student.name}.` });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
