@@ -17,13 +17,22 @@ const __dirname = path.dirname(__filename);
 const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-ktws-library';
 
-// Supabase Setup
-const supabaseUrl = process.env.SUPABASE_URL || 'https://pylohojohmtfigagcxzpc.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+let supabase: any;
 
 async function startServer() {
+  console.log('Starting server...');
+  
   const app = express();
+  
+  // Supabase Setup
+  const supabaseUrl = process.env.SUPABASE_URL || 'https://pylohojohmtfigagcxzpc.supabase.co';
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
+  
+  try {
+    supabase = createClient(supabaseUrl, supabaseKey);
+  } catch (e) {
+    console.warn('Supabase client failed to initialize, continuing with limited capability.');
+  }
   
   // 1. Core Middlewares
   app.use(cors());
@@ -36,11 +45,8 @@ async function startServer() {
     next();
   });
 
-  // 3. API Router
-  const api = express.Router();
-
   // Health check
-  api.get('/health', (req, res) => {
+  app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', supabase: !!supabaseUrl });
   });
 
@@ -62,12 +68,14 @@ async function startServer() {
   };
 
   // Auth Routes
-  api.post('/auth/login', async (req, res) => {
+  app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
+    console.log(`Login Attempt for: ${email}`);
     try {
       if (email === 'admin@ktws.com' && password === 'admin123') {
         const token = jwt.sign({ id: 'bootstrap-admin', email, role: 'admin', name: 'Admin' }, JWT_SECRET, { expiresIn: '24h' });
         res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'strict', maxAge: 24 * 60 * 60 * 1000 });
+        console.log('Login Success (Bootstrap)');
         return res.json({ user: { id: 'bootstrap-admin', email, role: 'admin', name: 'Admin' } });
       }
 
@@ -84,34 +92,35 @@ async function startServer() {
       res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'strict', maxAge: 24 * 60 * 60 * 1000 });
       res.json({ user: { id: user.id, email: user.email, role: user.role, name: user.name } });
     } catch (err: any) {
+      console.error('Login Error:', err);
       res.status(500).json({ error: 'Authentication failure: ' + (err.message || 'Unknown error') });
     }
   });
 
-  api.post('/auth/logout', (req, res) => {
+  app.post('/api/auth/logout', (req, res) => {
     res.clearCookie('token');
     res.json({ message: 'Logged out' });
   });
 
-  api.get('/auth/me', authenticateToken, (req: any, res) => {
+  app.get('/api/auth/me', authenticateToken, (req: any, res) => {
     res.json({ user: req.user });
   });
 
   // Student Routes
-  api.get('/students', authenticateToken, async (req, res) => {
+  app.get('/api/students', authenticateToken, async (req, res) => {
     const { data, error } = await supabase.from('students').select('*').order('name', { ascending: true });
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
   });
 
-  api.post('/students', authenticateToken, isAdmin, async (req, res) => {
+  app.post('/api/students', authenticateToken, isAdmin, async (req, res) => {
     const { name, class: className, section, qr_code } = req.body;
     const { data, error } = await supabase.from('students').insert([{ name, class: className, section, qr_code }]).select().single();
     if (error) return res.status(400).json({ error: error.message });
     res.json(data);
   });
 
-  api.post('/students/bulk', authenticateToken, isAdmin, async (req, res) => {
+  app.post('/api/students/bulk', authenticateToken, isAdmin, async (req, res) => {
     const { students } = req.body;
     try {
       const { data, error } = await supabase.from('students').insert(students);
@@ -123,20 +132,20 @@ async function startServer() {
   });
 
   // Book Routes
-  api.get('/books/lookup/:code', authenticateToken, async (req, res) => {
+  app.get('/api/books/lookup/:code', authenticateToken, async (req, res) => {
     const { code } = req.params;
     const { data, error } = await supabase.from('books').select('*').eq('barcode', code).single();
     if (error || !data) return res.status(404).json({ error: 'Book not found' });
     res.json(data);
   });
 
-  api.get('/books', authenticateToken, async (req, res) => {
+  app.get('/api/books', authenticateToken, async (req, res) => {
     const { data, error } = await supabase.from('books').select('*').order('title', { ascending: true });
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
   });
 
-  api.post('/books', authenticateToken, isAdmin, async (req, res) => {
+  app.post('/api/books', authenticateToken, isAdmin, async (req, res) => {
     const { title, author, barcode, total_copies } = req.body;
     const { data, error } = await supabase.from('books').insert([{ title, author, barcode, total_copies, available_copies: total_copies }]).select().single();
     if (error) return res.status(400).json({ error: error.message });
@@ -144,7 +153,7 @@ async function startServer() {
   });
 
   // Dashboard Stats
-  api.get('/dashboard/stats', authenticateToken, async (req, res) => {
+  app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
     try {
       const [books, issued, overdue, students] = await Promise.all([
         supabase.from('books').select('total_copies'),
@@ -169,7 +178,7 @@ async function startServer() {
   });
 
   // Transaction Routes
-  api.post('/issue-book', authenticateToken, async (req: any, res) => {
+  app.post('/api/issue-book', authenticateToken, async (req: any, res) => {
     const { barcode, studentQR } = req.body;
     try {
       const { data: book } = await supabase.from('books').select('*').eq('barcode', barcode).single();
@@ -186,7 +195,7 @@ async function startServer() {
     }
   });
 
-  api.post('/return-book', authenticateToken, async (req, res) => {
+  app.post('/api/return-book', authenticateToken, async (req, res) => {
     const { barcode, studentQR } = req.body;
     try {
       const { data: book } = await supabase.from('books').select('*').eq('barcode', barcode).single();
@@ -202,8 +211,11 @@ async function startServer() {
     }
   });
 
-  // Mount API
-  app.use('/api', api);
+  // Catch-all API error handler (for debugging 404s)
+  app.all('/api/*', (req, res) => {
+    console.warn(`[404] Unhandled API request: ${req.method} ${req.url}`);
+    res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
+  });
 
   // 4. Vite / Static
   if (process.env.NODE_ENV !== 'production') {

@@ -3,6 +3,7 @@
  */
 
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
+  console.log(`fetching: ${endpoint}`);
   const response = await fetch(endpoint, {
     ...options,
     headers: {
