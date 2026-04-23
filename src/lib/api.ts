@@ -46,8 +46,8 @@ export const api = {
     lookup: (code: string) => apiFetch(`/api/books/lookup/${code}`),
   },
   transactions: {
-    issue: (data: { barcode: string; studentQR: string }) => apiFetch('/api/issue-book', { method: 'POST', body: JSON.stringify(data) }),
-    return: (data: { barcode: string; studentQR: string }) => apiFetch('/api/return-book', { method: 'POST', body: JSON.stringify(data) }),
+    issue: (data: { barcode: string; studentQR: string }) => apiFetch('/api/transactions/issue', { method: 'POST', body: JSON.stringify(data) }),
+    return: (data: { barcode: string; studentQR: string }) => apiFetch('/api/transactions/return', { method: 'POST', body: JSON.stringify(data) }),
     list: () => apiFetch('/api/transactions'),
   }
 };

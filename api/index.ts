@@ -41,68 +41,61 @@ const initializeApp = () => {
   app.use(express.json());
   app.use(cookieParser());
 
-  const router = Router();
-
-  // --- DIAGNOSTIC HELPERS ---
-  router.get('/health', async (req, res) => {
-    const client = getSupabase();
-    res.json({ 
-      status: 'ok', 
-      db_connected: !!client,
-      env: {
-        url: !!(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL),
-        key: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY)
-      }
-    });
-  });
-
-  router.get('/troubleshoot', async (req, res) => {
-    if (req.query.debug === '1') {
-      return res.json({ alive: true, env: Object.keys(process.env).filter(k => k.includes('SUP') || k.includes('JWT')) });
-    }
-    const client = getSupabase();
-    let error = null;
-    if (client) {
-      const { error: dbErr } = await client.from('profiles').select('id').limit(1);
-      error = dbErr?.message;
-    } else error = "No DB Client";
-    res.json({ status: error ? 'FAILED' : 'SUCCESS', error });
-  });
-
-  // --- AUTH ---
+  // --- MIDDLEWARE ---
   const authenticate = (req: any, res: any, next: any) => {
     const token = req.cookies.token;
-    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    if (!token) return res.status(401).json({ error: 'Session expired. Please login again.' });
     jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-      if (err) return res.status(403).json({ error: 'Forbidden' });
+      if (err) return res.status(403).json({ error: 'Your session is invalid. Please login again.' });
       req.user = user;
       next();
     });
   };
 
-  router.post('/auth/login', async (req, res) => {
+  // --- SECTION: AUTH ---
+  const authRouter = Router();
+  authRouter.post('/login', async (req, res) => {
     const { email, password } = req.body;
     try {
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Missing email or password.' });
+      }
+
+      // Bootstrap Admin Bypass
       if (email === 'admin@ktws.com' && password === 'admin123') {
         const token = jwt.sign({ id: 'boot-admin', email, role: 'admin', name: 'Admin' }, JWT_SECRET, { expiresIn: '24h' });
         res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'strict', maxAge: 24 * 3600 * 1000 });
         return res.json({ user: { id: 'boot-admin', name: 'Admin', role: 'admin' } });
       }
+
       const client = getSupabase();
-      if (!client) return res.status(503).json({ error: 'Database Offline' });
+      if (!client) return res.status(503).json({ error: 'Database is currently offline. Please try again later.' });
+
       const { data: user, error } = await client.from('profiles').select('*').eq('email', email).single();
-      if (error || !user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ error: 'Invalid credentials' });
+      if (error || !user) {
+        return res.status(401).json({ error: 'Account not found. Contact administrator if you think this is an error.' });
+      }
+
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+         return res.status(401).json({ error: 'Incorrect password. Please check and try again.' });
+      }
+
       const token = jwt.sign({ id: user.id, name: user.name, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
       res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'strict', maxAge: 24 * 3600 * 1000 });
       res.json({ user: { id: user.id, name: user.name, role: user.role } });
-    } catch (err: any) { res.status(500).json({ error: err.message }); }
+    } catch (err: any) { 
+      console.error('[AUTH] Login Crash:', err);
+      res.status(500).json({ error: 'An internal error occurred during login. Please contact support.' }); 
+    }
   });
 
-  router.post('/auth/logout', (req, res) => res.clearCookie('token').json({ ok: true }));
-  router.get('/auth/me', authenticate, (req: any, res) => res.json({ user: req.user }));
+  authRouter.post('/logout', (req, res) => res.clearCookie('token').json({ ok: true }));
+  authRouter.get('/me', authenticate, (req: any, res) => res.json({ user: req.user }));
 
-  // --- CORE LOGIC ---
-  router.get('/dashboard/stats', authenticate, async (req, res) => {
+  // --- SECTION: DASHBOARD ---
+  const dashboardRouter = Router();
+  dashboardRouter.get('/stats', authenticate, async (req, res) => {
     const client = getSupabase();
     if (!client) return res.json({ stats: { totalBooks: 0, issuedBooks: 0, overdueBooks: 0, activeStudents: 0 }, recentActivity: [] });
     try {
@@ -122,24 +115,42 @@ const initializeApp = () => {
         },
         recentActivity: activity.data?.map((a: any) => ({ ...a, student_name: a.students?.name, book_title: a.books?.title })) || []
       });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: any) { res.status(500).json({ error: 'Failed to fetch dashboard data.' }); }
   });
 
-  router.get('/students', authenticate, async (req, res) => {
+  // --- SECTION: STUDENTS ---
+  const studentsRouter = Router();
+  studentsRouter.get('/', authenticate, async (req, res) => {
     const client = getSupabase();
     if (!client) return res.json([]);
     const { data, error } = await client.from('students').select('*').order('name', { ascending: true });
     res.json(error ? { error: error.message } : data);
   });
 
-  router.get('/books', authenticate, async (req, res) => {
+  studentsRouter.post('/bulk', authenticate, async (req: any, res: any) => {
+    if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Unauthorized: Admin access required.' });
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Offline' });
+    const { students } = req.body;
+    try {
+      const { data, error } = await client.from('students').insert(students);
+      if (error) throw error;
+      res.json({ success: true, count: students.length });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // --- SECTION: BOOKS ---
+  const booksRouter = Router();
+  booksRouter.get('/', authenticate, async (req, res) => {
     const client = getSupabase();
     if (!client) return res.json([]);
     const { data, error } = await client.from('books').select('*').order('title', { ascending: true });
     res.json(error ? { error: error.message } : data);
   });
 
-  router.get('/transactions', authenticate, async (req, res) => {
+  // --- SECTION: TRANSACTIONS ---
+  const transRouter = Router();
+  transRouter.get('/', authenticate, async (req, res) => {
     const client = getSupabase();
     if (!client) return res.json([]);
     const { data, error } = await client.from('transactions').select('*, students(name, class, section), books(title, author, barcode)').order('issue_date', { ascending: false });
@@ -147,9 +158,76 @@ const initializeApp = () => {
     res.json(data.map((t: any) => ({ ...t, student_name: t.students?.name, student_class: `${t.students?.class}-${t.students?.section}`, book_title: t.books?.title })));
   });
 
-  // Mount at both to be safe
-  app.use('/api', router);
-  app.use('/', router);
+  transRouter.post('/issue', authenticate, async (req: any, res: any) => {
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Database Offline' });
+    const { barcode, studentQR } = req.body;
+    try {
+      const { data: book } = await client.from('books').select('*').eq('barcode', barcode).single();
+      const { data: student } = await client.from('students').select('*').eq('qr_code', studentQR).single();
+      if (!book || !student) return res.status(404).json({ error: 'Book or Student not found.' });
+      
+      const dueDate = new Date(); dueDate.setDate(dueDate.getDate() + 7);
+      await client.from('transactions').insert([{ student_id: student.id, book_id: book.id, due_date: dueDate.toISOString(), status: 'issued' }]);
+      await client.from('books').update({ available_copies: (book.available_copies || 0) - 1 }).eq('id', book.id);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  transRouter.post('/return', authenticate, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Database Offline' });
+    const { barcode, studentQR } = req.body;
+    try {
+      const { data: book } = await client.from('books').select('*').eq('barcode', barcode).single();
+      const { data: student } = await client.from('students').select('*').eq('qr_code', studentQR).single();
+      if (!book || !student) return res.status(404).json({ error: 'Records not found.' });
+
+      const { data: trans } = await client.from('transactions').select('*').eq('student_id', student.id).eq('book_id', book.id).neq('status', 'returned').limit(1).single();
+      if (!trans) throw new Error('No active transaction found for this pair.');
+
+      await client.from('transactions').update({ status: 'returned', return_date: new Date().toISOString() }).eq('id', trans.id);
+      await client.from('books').update({ available_copies: (book.available_copies || 0) + 1 }).eq('id', book.id);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // --- MOUNTING ---
+  const rootRouter = Router();
+
+  // Diagnostics
+  rootRouter.get('/health', async (req, res) => {
+    const client = getSupabase();
+    res.json({ status: 'ok', db: !!client });
+  });
+
+  rootRouter.get('/troubleshoot', async (req, res) => {
+    if (req.query.debug === '1') {
+      return res.json({ alive: true, env: Object.keys(process.env).filter(k => k.includes('SUP') || k.includes('JWT')) });
+    }
+    const client = getSupabase();
+    let error = null;
+    if (client) {
+      const { error: dbErr } = await client.from('profiles').select('id').limit(1);
+      error = dbErr?.message;
+    } else error = "No DB Client";
+    res.json({ status: error ? 'FAILED' : 'SUCCESS', error });
+  });
+
+  // Resources
+  rootRouter.use('/auth', authRouter);
+  rootRouter.use('/dashboard', dashboardRouter);
+  rootRouter.use('/students', studentsRouter);
+  rootRouter.use('/books', booksRouter);
+  rootRouter.use('/transactions', transRouter);
+  
+  // Backwards compatibility for the old frontend calls
+  // (We'll update the frontend, but keeping these here for safety during turn-over)
+  rootRouter.post('/issue-book', (req, res) => res.redirect(307, '/api/transactions/issue'));
+  rootRouter.post('/return-book', (req, res) => res.redirect(307, '/api/transactions/return'));
+
+  app.use('/api', rootRouter);
+  app.use('/', rootRouter);
 
   appInstance = app;
   return app;

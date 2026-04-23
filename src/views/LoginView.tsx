@@ -20,24 +20,19 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
         const health = await api.auth.health();
         console.log('Backend Diagnostic:', health);
         
-        if (!health.supabase || !health.working) {
+        if (!health.db) {
           setDbStatus({ 
             connected: false, 
-            msg: !health.supabase ? 'Config Missing' : (health.msg || 'Connecting...')
+            msg: 'Offline'
           });
-          
-          if (!health.supabase) {
-            setError('Error 69: Dashboard keys not found. Check Vercel Variables.');
-          } else {
-            setError(`Error 69: ${health.msg}`);
-          }
+          setError('Database connection is not yet configured. Please set up environment variables.');
         } else {
           setDbStatus({ connected: true, msg: 'Online' });
         }
       } catch (err) {
         console.error('Health Check Failed:', err);
         setDbStatus({ connected: false, msg: 'Unreachable' });
-        setError('Error 69: Cannot talk to Backend Server.');
+        setError('Cannot connect to the backend server. Please check your internet or deployment.');
       }
     };
     checkDb();
@@ -50,16 +45,13 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     
     try {
       const data = await api.auth.login({ email, password });
       onLoginSuccess(data.user);
     } catch (err: any) {
-      if (err.message.includes('Database not connected') || err.message.includes('Supabase configuration missing')) {
-        setError('Error 69: Library records are currently inaccessible.');
-      } else {
-        setError(err.message);
-      }
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -82,7 +74,7 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
             {!dbStatus.connected && (
               <div className="mt-4 px-4 py-1.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 border border-orange-200">
                 <DatabaseZap size={12} />
-                DB: {dbStatus.msg} (69)
+                DB: {dbStatus.msg}
               </div>
             )}
           </div>

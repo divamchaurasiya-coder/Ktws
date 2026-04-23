@@ -12,13 +12,22 @@ interface ScannerProps {
 
 export default function Scanner({ onScan, fps = 10, qrbox = 250, label, active = true }: ScannerProps) {
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
-  const [hasError, setHasError] = useState(false);
+  const [hasError, setHasError] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
+  const [requesting, setRequesting] = useState(false);
 
-  const startScanner = () => {
+  const startScanner = async () => {
+    setHasError(null);
+    setRequesting(true);
+
     try {
+      // Explicitly request permission first
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      // If we get here, permission is granted. We should stop the temporary stream immediately.
+      stream.getTracks().forEach(track => track.stop());
+
       if (scannerRef.current) {
-        scannerRef.current.clear();
+        await scannerRef.current.clear().catch(() => {});
       }
 
       const scanner = new Html5QrcodeScanner(
@@ -47,24 +56,25 @@ export default function Scanner({ onScan, fps = 10, qrbox = 250, label, active =
 
       scannerRef.current = scanner;
       setStarted(true);
-      setHasError(false);
-    } catch (err) {
+      setRequesting(false);
+    } catch (err: any) {
       console.error("Scanner Error:", err);
-      setHasError(true);
+      setRequesting(false);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setHasError("Camera permission denied. Please enable it in browser settings.");
+      } else {
+        setHasError("Could not access camera. Make sure no other app is using it.");
+      }
     }
   };
 
   useEffect(() => {
-    if (active && started) {
-      // already started or will be started via button
-    }
-    
     return () => {
       if (scannerRef.current) {
         scannerRef.current.clear().catch(err => console.error("Cleanup error", err));
       }
     };
-  }, [active, started]);
+  }, []);
 
   return (
     <div className="flex flex-col items-center gap-4 w-full">
@@ -74,20 +84,24 @@ export default function Scanner({ onScan, fps = 10, qrbox = 250, label, active =
         {!started && (
           <button 
             onClick={startScanner}
-            className="flex flex-col items-center gap-3 text-[#4F46E5] active:scale-95 transition-transform"
+            disabled={requesting}
+            className={`flex flex-col items-center gap-3 text-[#4F46E5] active:scale-95 transition-all ${requesting ? 'opacity-50' : ''}`}
           >
-            <div className="p-5 bg-[#EEF2FF] rounded-full">
+            <div className="p-5 bg-[#EEF2FF] rounded-full animate-pulse">
               <Camera size={32} />
             </div>
-            <span className="text-sm font-bold">Tap to Start Camera</span>
+            <span className="text-sm font-bold">
+              {requesting ? 'Requesting Permission...' : 'Tap to Start Camera'}
+            </span>
           </button>
         )}
         <div id="qr-reader" className={`w-full h-full ${!started ? 'hidden' : ''}`}></div>
       </div>
 
       {hasError && (
-        <div className="p-4 bg-red-50 text-red-600 text-xs font-bold rounded-2xl border border-red-100 italic flex gap-2 items-center">
-          Failed to access camera. Please check permissions.
+        <div className="p-4 mx-4 bg-red-50 text-red-600 text-[11px] font-bold rounded-2xl border border-red-100 flex flex-col gap-2 items-center text-center">
+          <p>{hasError}</p>
+          <button onClick={startScanner} className="underline text-[#4F46E5]">Try Again</button>
         </div>
       )}
 
