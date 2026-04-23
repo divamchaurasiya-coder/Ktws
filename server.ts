@@ -59,7 +59,7 @@ async function startServer() {
   // 3. API Routes (Mounted FIRST)
   const router = express.Router();
 
-  // Health check
+  // Diagnostic Routes
   router.get('/health', async (req, res) => {
     const client = getSupabase();
     let dbWorking = false;
@@ -90,6 +90,41 @@ async function startServer() {
         hasKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY),
         hasJwt: !!process.env.JWT_SECRET
       }
+    });
+  });
+
+  // Dedicated Route for Database Issues Diagnostic
+  router.get('/troubleshoot', async (req, res) => {
+    const client = getSupabase();
+    const checks = {
+      supabase_config: !!(process.env.SUPABASE_URL && (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)),
+      url_exists: !!process.env.SUPABASE_URL,
+      key_exists: !!(process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY),
+      jwt_configured: !!process.env.JWT_SECRET,
+      environment: process.env.VERCEL ? 'Vercel' : 'Local',
+      timestamp: new Date().toISOString()
+    };
+
+    let connection_error: string | null = null;
+    if (client) {
+      try {
+        const { error } = await client.from('profiles').select('id').limit(1);
+        if (error) connection_error = error.message;
+      } catch (e: any) {
+        connection_error = e.message;
+      }
+    } else {
+      connection_error = "Client could not be initialized. Missing URL or Key.";
+    }
+
+    res.json({
+      summary: "Database Connectivity Diagnostics",
+      status: connection_error ? "FAILED" : "SUCCESS",
+      error_details: connection_error,
+      checks,
+      recommendation: connection_error?.includes("JWT") ? "Check JWT secret" : 
+                       connection_error?.includes("invalid input") ? "Check URL format" :
+                       !checks.supabase_config ? "Add environment variables in Vercel settings" : "Verify Supabase accessibility"
     });
   });
 
@@ -237,6 +272,29 @@ async function startServer() {
   });
 
   // Transaction Routes
+  router.get('/transactions', authenticateToken, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.json([]);
+    try {
+      const { data, error } = await client.from('transactions')
+        .select('*, students(name, class, section), books(title, author, barcode)')
+        .order('issue_date', { ascending: false });
+      
+      if (error) throw error;
+      
+      res.json(data.map((t: any) => ({
+        ...t,
+        student_name: t.students?.name,
+        student_class: `${t.students?.class}-${t.students?.section}`,
+        book_title: t.books?.title,
+        book_author: t.books?.author,
+        book_barcode: t.books?.barcode
+      })));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   router.post('/issue-book', authenticateToken, async (req: any, res) => {
     const client = getSupabase();
     if (!client) return res.status(503).json({ error: 'Missing Supabase' });
@@ -275,7 +333,10 @@ async function startServer() {
   });
 
   // Mount API router
-  app.use('/api', router);
+  // On Vercel, the function is already mapped to /api via vercel.json or folder structure
+  // Mounting at root '/' in serverless mode prevents nested '/api/api' paths
+  const mountPath = process.env.VERCEL ? '/' : '/api';
+  app.use(mountPath, router);
   routesMounted = true;
 
   // 4. Vite / Static (Only in local/standard environments)

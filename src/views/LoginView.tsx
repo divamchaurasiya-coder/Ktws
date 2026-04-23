@@ -43,6 +43,10 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
     checkDb();
   }, []);
 
+  const handleTroubleshoot = () => {
+    window.open('/api/troubleshoot', '_blank');
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -109,8 +113,15 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
             </div>
 
             {error && (
-              <div className="p-4 rounded-2xl bg-red-50 text-red-600 text-xs font-bold border border-red-100 italic">
-                {error}
+              <div className="p-4 rounded-2xl bg-red-50 text-red-600 text-xs font-bold border border-red-100 italic flex flex-col gap-2">
+                <span>{error}</span>
+                <button 
+                  type="button"
+                  onClick={handleTroubleshoot}
+                  className="text-[10px] font-black uppercase tracking-widest text-[#4F46E5] hover:underline text-left"
+                >
+                  Troubleshoot Connection Details →
+                </button>
               </div>
             )}
 

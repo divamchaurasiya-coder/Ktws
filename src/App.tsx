@@ -6,6 +6,7 @@ import IssueView from './views/IssueView';
 import ReturnView from './views/ReturnView';
 import StudentsView from './views/StudentsView';
 import BooksView from './views/BooksView';
+import TransactionsView from './views/TransactionsView';
 import LoginView from './views/LoginView';
 
 export default function App() {
@@ -49,6 +50,7 @@ export default function App() {
     >
       {activeTab === 'home' && <HomeView />}
       {activeTab === 'issue' && <IssueView />}
+      {activeTab === 'history' && <TransactionsView />}
       {activeTab === 'return' && <ReturnView />}
       {activeTab === 'students' && <StudentsView />}
       {activeTab === 'books' && <BooksView />}

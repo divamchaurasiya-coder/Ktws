@@ -48,5 +48,6 @@ export const api = {
   transactions: {
     issue: (data: { barcode: string; studentQR: string }) => apiFetch('/api/issue-book', { method: 'POST', body: JSON.stringify(data) }),
     return: (data: { barcode: string; studentQR: string }) => apiFetch('/api/return-book', { method: 'POST', body: JSON.stringify(data) }),
+    list: () => apiFetch('/api/transactions'),
   }
 };

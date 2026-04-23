@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Home, Scan, RotateCcw, Users, BookOpen, LogOut } from 'lucide-react';
+import { Home, Scan, RotateCcw, Users, BookOpen, LogOut, History } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../lib/api';
 
@@ -70,6 +70,12 @@ export default function Layout({ children, activeTab, onTabChange, user, onLogou
           onClick={() => onTabChange('issue')} 
           icon={<Scan size={24} />} 
           label="Issue" 
+        />
+        <NavItem 
+          active={activeTab === 'history'} 
+          onClick={() => onTabChange('history')} 
+          icon={<History size={24} />} 
+          label="Records" 
         />
         <NavItem 
           active={activeTab === 'students'} 
