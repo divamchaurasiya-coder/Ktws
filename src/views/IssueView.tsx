@@ -1,7 +1,7 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
 import Scanner from '../components/Scanner';
-import { Book, User, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Book, User, ArrowRight, CheckCircle2, AlertCircle, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function IssueView() {
@@ -10,6 +10,67 @@ export default function IssueView() {
   const [studentQR, setStudentQR] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Suggestions State
+  const [bookSuggestions, setBookSuggestions] = useState<any[]>([]);
+  const [studentSuggestions, setStudentSuggestions] = useState<any[]>([]);
+  const [showBookSug, setShowBookSug] = useState(false);
+  const [showStudentSug, setShowStudentSug] = useState(false);
+
+  // Search Timers
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const fetchBookSuggestions = async (q: string) => {
+    if (q.length < 2) {
+      setBookSuggestions([]);
+      return;
+    }
+    try {
+      const data = await api.books.search(q);
+      setBookSuggestions(data);
+      setShowBookSug(true);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchStudentSuggestions = async (q: string) => {
+    if (q.length < 2) {
+      setStudentSuggestions([]);
+      return;
+    }
+    try {
+      const data = await api.students.search(q);
+      setStudentSuggestions(data);
+      setShowStudentSug(true);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleBookChange = (q: string) => {
+    setBarcode(q);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => fetchBookSuggestions(q), 300);
+  };
+
+  const handleStudentChange = (q: string) => {
+    setStudentQR(q);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => fetchStudentSuggestions(q), 300);
+  };
+
+  const selectBook = (book: any) => {
+    setBarcode(book.barcode);
+    setShowBookSug(false);
+    setStep(2);
+  };
+
+  const selectStudent = (student: any) => {
+    setStudentQR(student.qr_code);
+    setShowStudentSug(false);
+    setStep(3);
+  };
 
   const handleBookScan = (data: string) => {
     setBarcode(data);
@@ -89,27 +150,56 @@ export default function IssueView() {
               <div className="relative flex justify-center text-xs uppercase"><span className="bg-[#F0F2F5] px-4 font-black text-[#94A3B8] tracking-widest">or</span></div>
             </div>
 
-            <form onSubmit={handleManualBook} className="bg-white p-6 rounded-[32px] border border-[#F1F5F9] shadow-sm space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-widest mb-2">Manual ISBN Entry</label>
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    value={barcode}
-                    onChange={e => setBarcode(e.target.value)}
-                    placeholder="Type ISBN Number..."
-                    className="flex-1 px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm"
-                  />
-                  <button 
-                    type="submit" 
-                    disabled={!barcode.trim()}
-                    className="px-6 bg-[#4F46E5] text-white rounded-2xl font-bold text-xs disabled:opacity-50"
-                  >
-                    Next
-                  </button>
+            <div className="relative">
+              <form onSubmit={handleManualBook} className="bg-white p-6 rounded-[32px] border border-[#F1F5F9] shadow-sm space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-widest mb-2">Manual ISBN or Title Entry</label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                      <input 
+                        type="text" 
+                        value={barcode}
+                        onChange={e => handleBookChange(e.target.value)}
+                        placeholder="Type Code or Title..."
+                        className="w-full px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm"
+                      />
+                    </div>
+                    <button 
+                      type="submit" 
+                      disabled={!barcode.trim()}
+                      className="px-6 bg-[#4F46E5] text-white rounded-2xl font-bold text-xs disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </form>
+              </form>
+
+              {/* Book Suggestions */}
+              {showBookSug && bookSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 bottom-full mb-2 bg-white border border-[#F1F5F9] rounded-[24px] shadow-2xl z-50 overflow-hidden divide-y divide-[#F1F5F9]">
+                  {bookSuggestions.map((book) => (
+                    <button 
+                      key={book.id}
+                      onClick={() => selectBook(book)}
+                      className="w-full text-left p-4 hover:bg-[#F8FAFC] flex items-center gap-3 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-500 shrink-0">
+                        <Book size={16} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-[#1A1A1A] truncate">{book.title}</p>
+                        <p className="text-[10px] text-[#64748B] flex items-center gap-2">
+                          <span className="font-mono">{book.barcode}</span>
+                          <span>•</span>
+                          <span>{book.author}</span>
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
 
@@ -135,27 +225,54 @@ export default function IssueView() {
               <div className="relative flex justify-center text-xs uppercase"><span className="bg-[#F0F2F5] px-4 font-black text-[#94A3B8] tracking-widest">or</span></div>
             </div>
 
-            <form onSubmit={handleManualStudent} className="bg-white p-6 rounded-[32px] border border-[#F1F5F9] shadow-sm space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-widest mb-2">Manual ID Entry</label>
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    value={studentQR}
-                    onChange={e => setStudentQR(e.target.value)}
-                    placeholder="Type Student ID..."
-                    className="flex-1 px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm"
-                  />
-                  <button 
-                    type="submit" 
-                    disabled={!studentQR.trim()}
-                    className="px-6 bg-[#4F46E5] text-white rounded-2xl font-bold text-xs disabled:opacity-50"
-                  >
-                    Review
-                  </button>
+            <div className="relative">
+              <form onSubmit={handleManualStudent} className="bg-white p-6 rounded-[32px] border border-[#F1F5F9] shadow-sm space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-widest mb-2">Manual ID or Name Entry</label>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={studentQR}
+                      onChange={e => handleStudentChange(e.target.value)}
+                      placeholder="Type Code or Name..."
+                      className="flex-1 px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm"
+                    />
+                    <button 
+                      type="submit" 
+                      disabled={!studentQR.trim()}
+                      className="px-6 bg-[#4F46E5] text-white rounded-2xl font-bold text-xs disabled:opacity-50"
+                    >
+                      Review
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </form>
+              </form>
+
+              {/* Student Suggestions */}
+              {showStudentSug && studentSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 bottom-full mb-2 bg-white border border-[#F1F5F9] rounded-[24px] shadow-2xl z-50 overflow-hidden divide-y divide-[#F1F5F9]">
+                  {studentSuggestions.map((st) => (
+                    <button 
+                      key={st.id}
+                      onClick={() => selectStudent(st)}
+                      className="w-full text-left p-4 hover:bg-[#F8FAFC] flex items-center gap-3 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-500 shrink-0">
+                        <User size={16} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-[#1A1A1A] truncate">{st.name}</p>
+                        <p className="text-[10px] text-[#64748B] flex items-center gap-2">
+                          <span className="font-mono">{st.qr_code}</span>
+                          <span>•</span>
+                          <span>Class {st.class}-{st.section}</span>
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <button 
               onClick={() => setStep(1)}

@@ -153,6 +153,19 @@ const initializeApp = () => {
     res.json(error ? { error: error.message } : data);
   });
 
+  studentsRouter.get('/search', authenticate, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.json([]);
+    const q = req.query.q as string;
+    if (!q) return res.json([]);
+    const { data, error } = await client
+      .from('students')
+      .select('*')
+      .or(`name.ilike.%${q}%,qr_code.ilike.%${q}%,class.ilike.%${q}%`)
+      .limit(5);
+    res.json(error ? [] : data);
+  });
+
   studentsRouter.post('/', authenticate, async (req, res) => {
     const client = getSupabase();
     if (!client) return res.status(503).json({ error: 'Offline' });
@@ -193,6 +206,19 @@ const initializeApp = () => {
     if (!client) return res.json([]);
     const { data, error } = await client.from('books').select('*').order('title', { ascending: true });
     res.json(error ? { error: error.message } : data);
+  });
+
+  booksRouter.get('/search', authenticate, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.json([]);
+    const q = req.query.q as string;
+    if (!q) return res.json([]);
+    const { data, error } = await client
+      .from('books')
+      .select('*')
+      .or(`title.ilike.%${q}%,author.ilike.%${q}%,barcode.ilike.%${q}%`)
+      .limit(5);
+    res.json(error ? [] : data);
   });
 
   booksRouter.post('/', authenticate, async (req, res) => {

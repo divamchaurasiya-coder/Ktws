@@ -39,12 +39,14 @@ export const api = {
   },
   students: {
     list: () => apiFetch('/api/students'),
+    search: (q: string) => apiFetch(`/api/students/search?q=${encodeURIComponent(q)}`),
     create: (data: any) => apiFetch('/api/students', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => apiFetch(`/api/students/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     bulkCreate: (students: any[]) => apiFetch('/api/students/bulk', { method: 'POST', body: JSON.stringify({ students }) }),
   },
   books: {
     list: () => apiFetch('/api/books'),
+    search: (q: string) => apiFetch(`/api/books/search?q=${encodeURIComponent(q)}`),
     create: (data: any) => apiFetch('/api/books', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => apiFetch(`/api/books/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     lookup: (code: string) => apiFetch(`/api/books/lookup/${code}`),
