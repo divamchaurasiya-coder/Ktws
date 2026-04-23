@@ -194,25 +194,35 @@ export default function StudentsView() {
 
       {/* QR Details Modal */}
       {selectedStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6">
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setSelectedStudent(null)} />
-          <div className="relative w-full max-w-sm bg-white rounded-[44px] shadow-2xl p-10 flex flex-col items-center">
-            <h3 className="text-xl font-bold text-[#1A1A1A] mb-1">{selectedStudent.name}</h3>
-            <p className="text-sm text-[#64748B] mb-8 font-medium">Class {selectedStudent.class}-{selectedStudent.section}</p>
+          <div className="relative w-full max-w-sm bg-white rounded-t-[44px] sm:rounded-[40px] shadow-2xl p-10 flex flex-col items-center">
+            <div className="w-20 h-20 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#4F46E5] text-3xl font-black mb-6 shadow-lg shadow-[#4F46E5]/10 border-4 border-white">
+              {selectedStudent.name.charAt(0)}
+            </div>
+
+            <h3 className="text-2xl font-black text-[#1A1A1A] mb-1">{selectedStudent.name}</h3>
+            <p className="text-sm font-bold text-[#64748B] uppercase tracking-widest mb-8">Class {selectedStudent.class}-{selectedStudent.section}</p>
             
-            <div className="p-6 bg-white border-2 border-[#F1F5F9] rounded-[32px] mb-8 shadow-sm">
-              <QRCode value={selectedStudent.qr_code} size={180} />
+            <div className="p-8 bg-white border-4 border-[#F1F5F9] rounded-[40px] mb-8 shadow-sm flex items-center justify-center">
+              <QRCode 
+                value={selectedStudent.qr_code} 
+                size={160} 
+                level="H"
+                fgColor="#1A1A1A"
+              />
             </div>
             
-            <p className="text-xs font-bold bg-[#F8FAFC] px-4 py-2 rounded-full text-[#4F46E5] mb-10 tracking-widest border border-[#F1F5F9]">
-              {selectedStudent.qr_code}
-            </p>
+            <div className="w-full bg-[#F8FAFC] p-5 rounded-[24px] flex flex-col items-center gap-1 mb-10 border border-[#F1F5F9]">
+              <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-[0.2em]">Regd. Student ID</p>
+              <p className="text-lg font-black text-[#1A1A1A] tracking-tight">{selectedStudent.qr_code}</p>
+            </div>
             
             <button 
               onClick={() => setSelectedStudent(null)}
               className="w-full py-5 bg-[#1A1A1A] text-white font-bold rounded-2xl active:scale-95 transition-transform"
             >
-              Close
+              Close Profile
             </button>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { api } from '../lib/api';
 import Scanner from '../components/Scanner';
 import { Book, User, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -21,12 +21,22 @@ export default function IssueView() {
     setStep(3);
   };
 
+  const handleManualBook = (e: FormEvent) => {
+    e.preventDefault();
+    if (barcode.trim()) setStep(2);
+  };
+
+  const handleManualStudent = (e: FormEvent) => {
+    e.preventDefault();
+    if (studentQR.trim()) setStep(3);
+  };
+
   const handleIssue = async () => {
     setLoading(true);
     setMessage(null);
     try {
-      const res = await api.transactions.issue({ barcode, studentQR });
-      setMessage({ type: 'success', text: res.message });
+      await api.transactions.issue({ barcode, studentQR });
+      setMessage({ type: 'success', text: 'Book issued successfully! The student has 7 days to return it.' });
       setStep(4); // Success State
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
@@ -73,6 +83,33 @@ export default function IssueView() {
               <p className="text-xs text-[#64748B]">Scan the barcode on the back of the book</p>
             </div>
             <Scanner onScan={handleBookScan} label="Scanning Book Barcode..." />
+            
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#F1F5F9]"></div></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-[#F0F2F5] px-4 font-black text-[#94A3B8] tracking-widest">or</span></div>
+            </div>
+
+            <form onSubmit={handleManualBook} className="bg-white p-6 rounded-[32px] border border-[#F1F5F9] shadow-sm space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-widest mb-2">Manual ISBN Entry</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={barcode}
+                    onChange={e => setBarcode(e.target.value)}
+                    placeholder="Type ISBN Number..."
+                    className="flex-1 px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm"
+                  />
+                  <button 
+                    type="submit" 
+                    disabled={!barcode.trim()}
+                    className="px-6 bg-[#4F46E5] text-white rounded-2xl font-bold text-xs disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </form>
           </motion.div>
         )}
 
@@ -92,6 +129,34 @@ export default function IssueView() {
               <p className="text-xs text-[#64748B]">Scan the student's ID card QR code</p>
             </div>
             <Scanner onScan={handleStudentScan} label="Scanning Student QR..." />
+            
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#F1F5F9]"></div></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-[#F0F2F5] px-4 font-black text-[#94A3B8] tracking-widest">or</span></div>
+            </div>
+
+            <form onSubmit={handleManualStudent} className="bg-white p-6 rounded-[32px] border border-[#F1F5F9] shadow-sm space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-[#64748B] uppercase tracking-widest mb-2">Manual ID Entry</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={studentQR}
+                    onChange={e => setStudentQR(e.target.value)}
+                    placeholder="Type Student ID..."
+                    className="flex-1 px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm"
+                  />
+                  <button 
+                    type="submit" 
+                    disabled={!studentQR.trim()}
+                    className="px-6 bg-[#4F46E5] text-white rounded-2xl font-bold text-xs disabled:opacity-50"
+                  >
+                    Review
+                  </button>
+                </div>
+              </div>
+            </form>
+
             <button 
               onClick={() => setStep(1)}
               className="w-full text-[10px] uppercase font-bold text-[#94A3B8] tracking-widest text-center"

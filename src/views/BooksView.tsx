@@ -7,6 +7,7 @@ export default function BooksView() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState('');
+  const [selectedBook, setSelectedBook] = useState<any>(null);
 
   // Form State
   const [formData, setFormData] = useState({ title: '', author: '', barcode: '', total_copies: 1 });
@@ -76,7 +77,11 @@ export default function BooksView() {
           <div className="py-10 text-center animate-pulse text-[#94A3B8] text-xs">Loading catalog...</div>
         ) : filtered.length > 0 ? (
           filtered.map(book => (
-            <div key={book.id} className="bg-white p-4 rounded-2xl border border-[#F1F5F9] shadow-xs flex items-start gap-4 active:bg-gray-50 transition-colors">
+            <div 
+              key={book.id} 
+              onClick={() => setSelectedBook(book)}
+              className="bg-white p-4 rounded-2xl border border-[#F1F5F9] shadow-xs flex items-start gap-4 active:bg-gray-50 transition-colors cursor-pointer"
+            >
               <div className="w-12 h-16 bg-[#EEF2FF] rounded-xl flex items-center justify-center text-[#4F46E5] shrink-0 border border-[#E0E7FF]">
                 <BookOpen size={24} />
               </div>
@@ -98,6 +103,47 @@ export default function BooksView() {
           <div className="py-10 text-center text-gray-400 text-xs italic bg-white rounded-2xl border border-dashed border-gray-200">No books in catalog</div>
         )}
       </div>
+
+      {/* Book Detail Modal */}
+      {selectedBook && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-6">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setSelectedBook(null)} />
+          <div className="relative w-full max-w-sm bg-white rounded-t-[44px] sm:rounded-[40px] shadow-2xl p-10 flex flex-col items-center">
+            <div className="w-20 h-28 bg-[#EEF2FF] rounded-[24px] flex items-center justify-center text-[#4F46E5] mb-6 shadow-lg shadow-[#4F46E5]/10 border-4 border-white">
+              <BookOpen size={40} />
+            </div>
+            
+            <h3 className="text-xl font-black text-[#1A1A1A] text-center leading-tight mb-2 px-4">{selectedBook.title}</h3>
+            <p className="text-sm text-[#64748B] font-bold uppercase tracking-widest mb-8">{selectedBook.author}</p>
+            
+            <div className="grid grid-cols-2 gap-4 w-full mb-8">
+              <div className="bg-[#F8FAFC] p-4 rounded-3xl border border-[#F1F5F9] text-center">
+                <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Available</p>
+                <p className="text-xl font-black text-[#10B981]">{selectedBook.available_copies}</p>
+              </div>
+              <div className="bg-[#F8FAFC] p-4 rounded-3xl border border-[#F1F5F9] text-center">
+                <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Total</p>
+                <p className="text-xl font-black text-[#4F46E5]">{selectedBook.total_copies}</p>
+              </div>
+            </div>
+
+            <div className="w-full bg-[#EEF2FF] p-5 rounded-[24px] flex flex-col items-center gap-2 mb-10">
+              <p className="text-[10px] font-black text-[#4F46E5]/60 uppercase tracking-[0.2em]">ISBN Barcode</p>
+              <div className="flex items-center gap-3">
+                <Barcode size={24} className="text-[#4F46E5]" />
+                <span className="text-lg font-black text-[#4F46E5] tracking-tight">{selectedBook.barcode}</span>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => setSelectedBook(null)}
+              className="w-full py-5 bg-[#1A1A1A] text-white font-bold rounded-2xl active:scale-95 transition-transform"
+            >
+              Back to Catalog
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Add Modal */}
       {showAdd && (
