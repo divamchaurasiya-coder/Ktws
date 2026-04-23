@@ -148,6 +148,18 @@ router.post('/students', authenticateToken, async (req: any, res) => {
   res.json(error ? { error: error.message } : data);
 });
 
+router.post('/students/bulk', authenticateToken, async (req: any, res: any) => {
+  if (req.user?.role !== 'admin') return res.status(403).send('Admin only');
+  const client = getSupabase();
+  if (!client) return res.status(503).send('Offline');
+  const { students } = req.body;
+  try {
+    const { data, error } = await client.from('students').insert(students);
+    if (error) throw error;
+    res.json({ success: true, count: students.length });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/books', authenticateToken, async (req, res) => {
   const client = getSupabase();
   if (!client) return res.json([]);
@@ -157,11 +169,28 @@ router.get('/books', authenticateToken, async (req, res) => {
 
 router.get('/dashboard/stats', authenticateToken, async (req, res) => {
   const client = getSupabase();
-  if (!client) return res.json({ stats: {}, recentActivity: [] });
+  if (!client) return res.json({ stats: { totalBooks: 0, issuedBooks: 0, overdueBooks: 0, activeStudents: 0 }, recentActivity: [] });
   try {
+    const [books, issued, overdue, students] = await Promise.all([
+      client.from('books').select('total_copies'),
+      client.from('transactions').select('id', { count: 'exact', head: true }).eq('status', 'issued'),
+      client.from('transactions').select('id', { count: 'exact', head: true }).eq('status', 'overdue'),
+      client.from('transactions').select('student_id', { count: 'exact', head: true })
+    ]);
     const { data: activity } = await client.from('transactions').select('*, students(name), books(title)').order('issue_date', { ascending: false }).limit(10);
-    res.json({ stats: {}, recentActivity: activity?.map((a: any) => ({ ...a, student_name: a.students?.name, book_title: a.books?.title })) || [] });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+    
+    res.json({
+      stats: {
+        totalBooks: books.data?.reduce((acc: number, b: any) => acc + (b.total_copies || 0), 0) || 0,
+        issuedBooks: issued.count || 0,
+        overdueBooks: overdue.count || 0,
+        activeStudents: students.count || 0
+      },
+      recentActivity: activity?.map((a: any) => ({ ...a, student_name: a.students?.name, book_title: a.books?.title })) || []
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 router.get('/transactions', authenticateToken, async (req, res) => {
