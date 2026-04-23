@@ -18,13 +18,24 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
     const checkDb = async () => {
       try {
         const health = await api.auth.health();
+        console.log('Backend Health Status:', health);
         if (!health.supabase) {
           setDbConnected(false);
-          setError('Error 69: Database not connected');
+          const missing = [];
+          if (!health.env.hasUrl) missing.push('SUPABASE_URL');
+          if (!health.env.hasKey) missing.push('SUPABASE_ANON_KEY');
+          
+          if (missing.length > 0) {
+            console.error('Missing Environment Variables on Vercel:', missing.join(', '));
+            setError(`Error 69: Missing ${missing.join(' and ')}`);
+          } else {
+            setError('Error 69: Database Connection Failed');
+          }
         }
       } catch (err) {
+        console.error('Health Check Failed:', err);
         setDbConnected(false);
-        setError('Error 69: Connection failure');
+        setError('Error 69: Backend Unreachable');
       }
     };
     checkDb();

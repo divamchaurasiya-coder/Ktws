@@ -9,6 +9,8 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import cors from 'cors';
 
+import fs from 'fs';
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,27 +19,38 @@ const __dirname = path.dirname(__filename);
 const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-ktws-library';
 
-// Supabase Setup
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
+// Initialize app instance
+const app = express();
 
+// Supabase Setup (Better detection)
 let supabase: any;
-if (supabaseUrl && supabaseKey) {
-  try {
-    supabase = createClient(supabaseUrl, supabaseKey);
-  } catch (e) {
-    console.error('Supabase init error:', e);
+const getSupabase = () => {
+  if (supabase) return supabase;
+  
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+  
+  if (url && key) {
+    try {
+      supabase = createClient(url, key);
+      return supabase;
+    } catch (e) {
+      console.error('Supabase init error:', e);
+    }
   }
-}
+  return null;
+};
+
+let routesMounted = false;
 
 async function startServer() {
-  console.log('Starting KTWS Library Server...');
+  if (routesMounted) return;
   
-  const app = express();
+  console.log('Mounting KTWS Library Server Routes...');
   
   // 1. Core Middlewares
   app.use(cors({ origin: true, credentials: true }));
-  app.options('*', cors()); // Enable pre-flight for all routes
+  app.options('*', cors());
   app.use(express.json());
   app.use(cookieParser());
   
@@ -47,13 +60,20 @@ async function startServer() {
     next();
   });
 
-  // 3. API Routes (Mounted FIRST to avoid conflicts)
+  // 3. API Routes (Mounted FIRST)
   const router = express.Router();
-  app.use('/api', router);
 
   // Health check
   router.get('/health', (req, res) => {
-    res.json({ status: 'ok', supabase: !!supabase });
+    const client = getSupabase();
+    res.json({ 
+      status: 'ok', 
+      supabase: !!client,
+      env: {
+        hasUrl: !!(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL),
+        hasKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY)
+      }
+    });
   });
 
   // Auth Middleware
@@ -86,11 +106,12 @@ async function startServer() {
         return res.json({ user: { id: 'bootstrap-admin', email, role: 'admin', name: 'Admin' } });
       }
 
-      if (!supabase) {
-        return res.status(503).json({ error: 'Database not connected. Use admin@ktws.com / admin123' });
+      const client = getSupabase();
+      if (!client) {
+        return res.status(503).json({ error: 'Database not connected. Check environment variables (Error 69)' });
       }
 
-      const { data: user, error } = await supabase.from('profiles').select('*').eq('email', email).single();
+      const { data: user, error } = await client.from('profiles').select('*').eq('email', email).single();
       if (error || !user || !(await bcrypt.compare(password, user.password))) {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
@@ -115,25 +136,28 @@ async function startServer() {
 
   // Student Routes
   router.get('/students', authenticateToken, async (req, res) => {
-    if (!supabase) return res.json([]);
-    const { data, error } = await supabase.from('students').select('*').order('name', { ascending: true });
+    const client = getSupabase();
+    if (!client) return res.json([]);
+    const { data, error } = await client.from('students').select('*').order('name', { ascending: true });
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
   });
 
   router.post('/students', authenticateToken, isAdmin, async (req, res) => {
-    if (!supabase) return res.status(503).json({ error: 'Missing Supabase' });
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Missing Supabase' });
     const { name, class: className, section, qr_code } = req.body;
-    const { data, error } = await supabase.from('students').insert([{ name, class: className, section, qr_code }]).select().single();
+    const { data, error } = await client.from('students').insert([{ name, class: className, section, qr_code }]).select().single();
     if (error) return res.status(400).json({ error: error.message });
     res.json(data);
   });
 
   router.post('/students/bulk', authenticateToken, isAdmin, async (req, res) => {
-    if (!supabase) return res.status(503).json({ error: 'Missing Supabase' });
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Missing Supabase' });
     const { students } = req.body;
     try {
-      const { data, error } = await supabase.from('students').insert(students);
+      const { data, error } = await client.from('students').insert(students);
       if (error) throw error;
       res.json({ success: true, count: students.length });
     } catch (e: any) {
@@ -143,39 +167,43 @@ async function startServer() {
 
   // Book Routes
   router.get('/books/lookup/:code', authenticateToken, async (req, res) => {
-    if (!supabase) return res.status(404).json({ error: 'Mock mode: DB not found' });
+    const client = getSupabase();
+    if (!client) return res.status(404).json({ error: 'Mock mode: DB not found' });
     const { code } = req.params;
-    const { data, error } = await supabase.from('books').select('*').eq('barcode', code).single();
+    const { data, error } = await client.from('books').select('*').eq('barcode', code).single();
     if (error || !data) return res.status(404).json({ error: 'Book not found' });
     res.json(data);
   });
 
   router.get('/books', authenticateToken, async (req, res) => {
-    if (!supabase) return res.json([]);
-    const { data, error } = await supabase.from('books').select('*').order('title', { ascending: true });
+    const client = getSupabase();
+    if (!client) return res.json([]);
+    const { data, error } = await client.from('books').select('*').order('title', { ascending: true });
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
   });
 
   router.post('/books', authenticateToken, isAdmin, async (req, res) => {
-    if (!supabase) return res.status(503).json({ error: 'Missing Supabase' });
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Missing Supabase' });
     const { title, author, barcode, total_copies } = req.body;
-    const { data, error } = await supabase.from('books').insert([{ title, author, barcode, total_copies, available_copies: total_copies }]).select().single();
+    const { data, error } = await client.from('books').insert([{ title, author, barcode, total_copies, available_copies: total_copies }]).select().single();
     if (error) return res.status(400).json({ error: error.message });
     res.json(data);
   });
 
   // Dashboard Stats
   router.get('/dashboard/stats', authenticateToken, async (req, res) => {
-    if (!supabase) return res.json({ stats: { totalBooks: 0, issuedBooks: 0, overdueBooks: 0, activeStudents: 0 }, recentActivity: [] });
+    const client = getSupabase();
+    if (!client) return res.json({ stats: { totalBooks: 0, issuedBooks: 0, overdueBooks: 0, activeStudents: 0 }, recentActivity: [] });
     try {
       const [books, issued, overdue, students] = await Promise.all([
-        supabase.from('books').select('total_copies'),
-        supabase.from('transactions').select('id', { count: 'exact', head: true }).eq('status', 'issued'),
-        supabase.from('transactions').select('id', { count: 'exact', head: true }).eq('status', 'overdue'),
-        supabase.from('transactions').select('student_id', { count: 'exact', head: true })
+        client.from('books').select('total_copies'),
+        client.from('transactions').select('id', { count: 'exact', head: true }).eq('status', 'issued'),
+        client.from('transactions').select('id', { count: 'exact', head: true }).eq('status', 'overdue'),
+        client.from('transactions').select('student_id', { count: 'exact', head: true })
       ]);
-      const { data: activity } = await supabase.from('transactions').select('*, students(name), books(title)').order('issue_date', { ascending: false }).limit(10);
+      const { data: activity } = await client.from('transactions').select('*, students(name), books(title)').order('issue_date', { ascending: false }).limit(10);
       
       res.json({
         stats: {
@@ -193,17 +221,18 @@ async function startServer() {
 
   // Transaction Routes
   router.post('/issue-book', authenticateToken, async (req: any, res) => {
-    if (!supabase) return res.status(503).json({ error: 'Missing Supabase' });
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Missing Supabase' });
     const { barcode, studentQR } = req.body;
     try {
-      const { data: book } = await supabase.from('books').select('*').eq('barcode', barcode).single();
-      const { data: student } = await supabase.from('students').select('*').eq('qr_code', studentQR).single();
+      const { data: book } = await client.from('books').select('*').eq('barcode', barcode).single();
+      const { data: student } = await client.from('students').select('*').eq('qr_code', studentQR).single();
       if (!book || !student || book.available_copies <= 0) throw new Error('Invalid book/student or no copies');
 
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 7);
-      await supabase.from('transactions').insert([{ student_id: student.id, book_id: book.id, issued_by: req.user.id !== 'bootstrap-admin' ? req.user.id : null, due_date: dueDate.toISOString(), status: 'issued' }]);
-      await supabase.from('books').update({ available_copies: book.available_copies - 1 }).eq('id', book.id);
+      await client.from('transactions').insert([{ student_id: student.id, book_id: book.id, issued_by: req.user.id !== 'bootstrap-admin' ? req.user.id : null, due_date: dueDate.toISOString(), status: 'issued' }]);
+      await client.from('books').update({ available_copies: book.available_copies - 1 }).eq('id', book.id);
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -211,37 +240,55 @@ async function startServer() {
   });
 
   router.post('/return-book', authenticateToken, async (req, res) => {
-    if (!supabase) return res.status(503).json({ error: 'Missing Supabase' });
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Missing Supabase' });
     const { barcode, studentQR } = req.body;
     try {
-      const { data: book } = await supabase.from('books').select('*').eq('barcode', barcode).single();
-      const { data: student } = await supabase.from('students').select('*').eq('qr_code', studentQR).single();
-      const { data: trans } = await supabase.from('transactions').select('*').eq('student_id', student.id).eq('book_id', book.id).neq('status', 'returned').order('issue_date', { ascending: false }).limit(1).single();
+      const { data: book } = await client.from('books').select('*').eq('barcode', barcode).single();
+      const { data: student } = await client.from('students').select('*').eq('qr_code', studentQR).single();
+      const { data: trans } = await client.from('transactions').select('*').eq('student_id', student.id).eq('book_id', book.id).neq('status', 'returned').order('issue_date', { ascending: false }).limit(1).single();
       if (!trans) throw new Error('No active transaction');
 
-      await supabase.from('transactions').update({ status: 'returned', return_date: new Date().toISOString() }).eq('id', trans.id);
-      await supabase.from('books').update({ available_copies: book.available_copies + 1 }).eq('id', book.id);
+      await client.from('transactions').update({ status: 'returned', return_date: new Date().toISOString() }).eq('id', trans.id);
+      await client.from('books').update({ available_copies: book.available_copies + 1 }).eq('id', book.id);
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
   });
 
-  // 4. Vite / Static
-  if (process.env.NODE_ENV !== 'production') {
+  // Mount API router
+  app.use('/api', router);
+  routesMounted = true;
+
+  // 4. Vite / Static (Only in local/standard environments)
+  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
     app.use(vite.middlewares);
   } else {
+    // Note: On Vercel, static files are handled by the rewriter, 
+    // but we keep this for standalone production builds
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
+    if (fs.existsSync(distPath)) {
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
+    }
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[${new Date().toISOString()}] Server running on http://0.0.0.0:${PORT}`);
-  });
+  // Only listen if explicitly called as a main module (not via Vercel)
+  if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`[${new Date().toISOString()}] Server running on http://0.0.0.0:${PORT}`);
+    });
+  }
 }
 
-startServer().catch(err => {
-  console.error('SERVER FATAL STARTUP ERROR:', err);
-});
+// Export app and startup for Vercel
+export { app, startServer };
+
+// Auto-start if running locally
+if (!process.env.VERCEL) {
+  startServer().catch(err => {
+    console.error('SERVER FATAL STARTUP ERROR:', err);
+  });
+}
