@@ -1,0 +1,12 @@
+{
+  "name": "KTWS Library Management System",
+  "description": "A mobile-first library management system for teachers to issue and return books by scanning barcodes and QR codes.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "AI-powered book lookup",
+    "Real-time scanning",
+    "PWA support"
+  ]
+}

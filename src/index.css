@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Helvetica Neue', ui-sans-serif, system-ui, sans-serif;
+  
+  --color-primary: #4F46E5;
+  --color-primary-foreground: #FFFFFF;
+  
+  --color-stat-books: #EEF2FF;
+  --color-stat-issued: #ECFDF5;
+  --color-stat-overdue: #FFFBEB;
+  --color-stat-students: #F8FAFC;
+
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+}
+
+@layer base {
+  body {
+    @apply bg-[#F0F2F5] text-[#1A1A1A] antialiased;
+  }
+}
+
+.markdown-body {
+  @apply text-sm leading-relaxed;
+}
+
+/* Fix for html5-qrcode-scanner layout */
+#qr-reader {
+  border: none !important;
+  background: white !important;
+}
+
+#qr-reader div:first-child {
+  display: none !important;
+}
+
+#qr-reader img {
+  display: none !important;
+}
+
+#qr-reader video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 24px !important;
+}
+
+#qr-reader__scan_region {
+  padding: 0 !important;
+  background: white !important;
+}
+
+#qr-reader__dashboard {
+  background: white !important;
+  padding: 10px !important;
+  border-top: 1px solid #F1F5F9 !important;
+}
+
+#qr-reader__dashboard button {
+  background-color: #4F46E5 !important;
+  color: white !important;
+  border-radius: 12px !important;
+  padding: 8px 16px !important;
+  font-weight: bold !important;
+  border: none !important;
+  margin: 4px !important;
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+#qr-reader__status_span {
+  font-size: 10px !important;
+  font-weight: bold !important;
+  color: #64748B !important;
+  text-transform: uppercase !important;
+}
