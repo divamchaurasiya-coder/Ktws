@@ -8,6 +8,8 @@ export default function BooksView() {
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedBook, setSelectedBook] = useState<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<any>(null);
 
   // Form State
   const [formData, setFormData] = useState({ title: '', author: '', barcode: '', total_copies: 1 });
@@ -41,6 +43,33 @@ export default function BooksView() {
     } finally {
       setFormLoading(false);
     }
+  };
+
+  const handleUpdate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedBook) return;
+    setFormLoading(true);
+    try {
+      await api.books.update(selectedBook.id, editData);
+      await fetchBooks();
+      setSelectedBook({ ...selectedBook, ...editData });
+      setIsEditing(false);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const startEditing = () => {
+    setEditData({
+      title: selectedBook.title,
+      author: selectedBook.author,
+      total_copies: selectedBook.total_copies,
+      available_copies: selectedBook.available_copies,
+      status: selectedBook.status || 'Available'
+    });
+    setIsEditing(true);
   };
 
   const filtered = books.filter(b => 
@@ -107,40 +136,138 @@ export default function BooksView() {
       {/* Book Detail Modal */}
       {selectedBook && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-6">
-          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setSelectedBook(null)} />
-          <div className="relative w-full max-w-sm bg-white rounded-t-[44px] sm:rounded-[40px] shadow-2xl p-10 flex flex-col items-center">
-            <div className="w-20 h-28 bg-[#EEF2FF] rounded-[24px] flex items-center justify-center text-[#4F46E5] mb-6 shadow-lg shadow-[#4F46E5]/10 border-4 border-white">
-              <BookOpen size={40} />
-            </div>
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => { setSelectedBook(null); setIsEditing(false); }} />
+          <div className="relative w-full max-w-md bg-white rounded-t-[44px] sm:rounded-[40px] shadow-2xl p-8 sm:p-10 flex flex-col items-center">
             
-            <h3 className="text-xl font-black text-[#1A1A1A] text-center leading-tight mb-2 px-4">{selectedBook.title}</h3>
-            <p className="text-sm text-[#64748B] font-bold uppercase tracking-widest mb-8">{selectedBook.author}</p>
-            
-            <div className="grid grid-cols-2 gap-4 w-full mb-8">
-              <div className="bg-[#F8FAFC] p-4 rounded-3xl border border-[#F1F5F9] text-center">
-                <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Available</p>
-                <p className="text-xl font-black text-[#10B981]">{selectedBook.available_copies}</p>
-              </div>
-              <div className="bg-[#F8FAFC] p-4 rounded-3xl border border-[#F1F5F9] text-center">
-                <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Total</p>
-                <p className="text-xl font-black text-[#4F46E5]">{selectedBook.total_copies}</p>
-              </div>
-            </div>
+            {!isEditing ? (
+              <>
+                <div className="w-20 h-28 bg-[#EEF2FF] rounded-[24px] flex items-center justify-center text-[#4F46E5] mb-6 shadow-lg shadow-[#4F46E5]/10 border-4 border-white">
+                  <BookOpen size={40} />
+                </div>
+                
+                <h3 className="text-xl font-black text-[#1A1A1A] text-center leading-tight mb-2 px-4">{selectedBook.title}</h3>
+                <p className="text-sm text-[#64748B] font-bold uppercase tracking-widest mb-8">{selectedBook.author}</p>
+                
+                <div className="grid grid-cols-2 gap-4 w-full mb-8">
+                  <div className="bg-[#F8FAFC] p-4 rounded-3xl border border-[#F1F5F9] text-center">
+                    <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Available</p>
+                    <p className="text-xl font-black text-[#10B981]">{selectedBook.available_copies}</p>
+                  </div>
+                  <div className="bg-[#F8FAFC] p-4 rounded-3xl border border-[#F1F5F9] text-center">
+                    <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Total</p>
+                    <p className="text-xl font-black text-[#4F46E5]">{selectedBook.total_copies}</p>
+                  </div>
+                </div>
 
-            <div className="w-full bg-[#EEF2FF] p-5 rounded-[24px] flex flex-col items-center gap-2 mb-10">
-              <p className="text-[10px] font-black text-[#4F46E5]/60 uppercase tracking-[0.2em]">ISBN Barcode</p>
-              <div className="flex items-center gap-3">
-                <Barcode size={24} className="text-[#4F46E5]" />
-                <span className="text-lg font-black text-[#4F46E5] tracking-tight">{selectedBook.barcode}</span>
-              </div>
-            </div>
-            
-            <button 
-              onClick={() => setSelectedBook(null)}
-              className="w-full py-5 bg-[#1A1A1A] text-white font-bold rounded-2xl active:scale-95 transition-transform"
-            >
-              Back to Catalog
-            </button>
+                <div className="w-full bg-[#EEF2FF] p-5 rounded-[24px] flex flex-col items-center gap-2 mb-10">
+                  <p className="text-[10px] font-black text-[#4F46E5]/60 uppercase tracking-[0.2em]">ISBN Barcode</p>
+                  <div className="flex items-center gap-3">
+                    <Barcode size={24} className="text-[#4F46E5]" />
+                    <span className="text-lg font-black text-[#4F46E5] tracking-tight">{selectedBook.barcode}</span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 w-full">
+                  <button 
+                    onClick={() => { setSelectedBook(null); setIsEditing(false); }}
+                    className="py-5 bg-white border border-[#F1F5F9] text-[#64748B] font-bold rounded-2xl active:scale-95 transition-transform"
+                  >
+                    Close
+                  </button>
+                  <button 
+                    onClick={startEditing}
+                    className="py-5 bg-[#4F46E5] text-white font-bold rounded-2xl active:scale-95 transition-transform shadow-lg shadow-[#4F46E5]/20"
+                  >
+                    Edit Status
+                  </button>
+                </div>
+              </>
+            ) : (
+              <form onSubmit={handleUpdate} className="w-full space-y-6">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-xl font-black text-[#1A1A1A]">Edit Information</h3>
+                  <button type="button" onClick={() => setIsEditing(false)} className="text-[#64748B]"><X size={20} /></button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Book Title</label>
+                    <input 
+                      required
+                      value={editData.title}
+                      onChange={e => setEditData({...editData, title: e.target.value})}
+                      className="w-full px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Author</label>
+                    <input 
+                      required
+                      value={editData.author}
+                      onChange={e => setEditData({...editData, author: e.target.value})}
+                      className="w-full px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm font-bold"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Total Copies</label>
+                      <input 
+                        type="number"
+                        min="0"
+                        value={editData.total_copies}
+                        onChange={e => setEditData({...editData, total_copies: parseInt(e.target.value)})}
+                        className="w-full px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Available</label>
+                      <input 
+                        type="number"
+                        min="0"
+                        max={editData.total_copies}
+                        value={editData.available_copies}
+                        onChange={e => setEditData({...editData, available_copies: parseInt(e.target.value)})}
+                        className="w-full px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Book Status</label>
+                    <select 
+                      value={editData.status}
+                      onChange={e => setEditData({...editData, status: e.target.value})}
+                      className="w-full px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm font-bold appearance-none"
+                    >
+                      <option value="Available">Available</option>
+                      <option value="Issued">Issued</option>
+                      <option value="Maintenance">Maintenance</option>
+                      <option value="Lost">Lost</option>
+                      <option value="Archived">Archived</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button 
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    className="py-5 border border-[#F1F5F9] text-[#64748B] font-bold rounded-2xl"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={formLoading}
+                    className="py-5 bg-[#4F46E5] text-white font-bold rounded-2xl shadow-lg shadow-[#4F46E5]/30 disabled:opacity-50"
+                  >
+                    {formLoading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

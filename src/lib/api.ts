@@ -38,11 +38,13 @@ export const api = {
   students: {
     list: () => apiFetch('/api/students'),
     create: (data: any) => apiFetch('/api/students', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) => apiFetch(`/api/students/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     bulkCreate: (students: any[]) => apiFetch('/api/students/bulk', { method: 'POST', body: JSON.stringify({ students }) }),
   },
   books: {
     list: () => apiFetch('/api/books'),
     create: (data: any) => apiFetch('/api/books', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) => apiFetch(`/api/books/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     lookup: (code: string) => apiFetch(`/api/books/lookup/${code}`),
   },
   transactions: {

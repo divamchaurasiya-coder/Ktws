@@ -11,6 +11,8 @@ export default function StudentsView() {
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<any>(null);
 
   // Form State
   const [formData, setFormData] = useState({ name: '', class: '', section: '', qr_code: '' });
@@ -29,6 +31,32 @@ export default function StudentsView() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUpdate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedStudent) return;
+    setFormLoading(true);
+    try {
+      await api.students.update(selectedStudent.id, editData);
+      await fetchStudents();
+      setSelectedStudent({ ...selectedStudent, ...editData });
+      setIsEditing(false);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const startEditing = () => {
+    setEditData({
+      name: selectedStudent.name,
+      class: selectedStudent.class,
+      section: selectedStudent.section,
+      qr_code: selectedStudent.qr_code
+    });
+    setIsEditing(true);
   };
 
   const handleAdd = async (e: FormEvent) => {
@@ -195,35 +223,115 @@ export default function StudentsView() {
       {/* QR Details Modal */}
       {selectedStudent && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6">
-          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setSelectedStudent(null)} />
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => { setSelectedStudent(null); setIsEditing(false); }} />
           <div className="relative w-full max-w-sm bg-white rounded-t-[44px] sm:rounded-[40px] shadow-2xl p-10 flex flex-col items-center">
-            <div className="w-20 h-20 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#4F46E5] text-3xl font-black mb-6 shadow-lg shadow-[#4F46E5]/10 border-4 border-white">
-              {selectedStudent.name.charAt(0)}
-            </div>
+            
+            {!isEditing ? (
+              <>
+                <div className="w-20 h-20 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#4F46E5] text-3xl font-black mb-6 shadow-lg shadow-[#4F46E5]/10 border-4 border-white">
+                  {selectedStudent.name.charAt(0)}
+                </div>
 
-            <h3 className="text-2xl font-black text-[#1A1A1A] mb-1">{selectedStudent.name}</h3>
-            <p className="text-sm font-bold text-[#64748B] uppercase tracking-widest mb-8">Class {selectedStudent.class}-{selectedStudent.section}</p>
-            
-            <div className="p-8 bg-white border-4 border-[#F1F5F9] rounded-[40px] mb-8 shadow-sm flex items-center justify-center">
-              <QRCode 
-                value={selectedStudent.qr_code} 
-                size={160} 
-                level="H"
-                fgColor="#1A1A1A"
-              />
-            </div>
-            
-            <div className="w-full bg-[#F8FAFC] p-5 rounded-[24px] flex flex-col items-center gap-1 mb-10 border border-[#F1F5F9]">
-              <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-[0.2em]">Regd. Student ID</p>
-              <p className="text-lg font-black text-[#1A1A1A] tracking-tight">{selectedStudent.qr_code}</p>
-            </div>
-            
-            <button 
-              onClick={() => setSelectedStudent(null)}
-              className="w-full py-5 bg-[#1A1A1A] text-white font-bold rounded-2xl active:scale-95 transition-transform"
-            >
-              Close Profile
-            </button>
+                <h3 className="text-2xl font-black text-[#1A1A1A] mb-1">{selectedStudent.name}</h3>
+                <p className="text-sm font-bold text-[#64748B] uppercase tracking-widest mb-8">Class {selectedStudent.class}-{selectedStudent.section}</p>
+                
+                <div className="p-8 bg-white border-4 border-[#F1F5F9] rounded-[40px] mb-8 shadow-sm flex items-center justify-center">
+                  <QRCode 
+                    value={selectedStudent.qr_code} 
+                    size={160} 
+                    level="H"
+                    fgColor="#1A1A1A"
+                  />
+                </div>
+                
+                <div className="w-full bg-[#F8FAFC] p-5 rounded-[24px] flex flex-col items-center gap-1 mb-10 border border-[#F1F5F9]">
+                  <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-[0.2em]">Regd. Student ID</p>
+                  <p className="text-lg font-black text-[#1A1A1A] tracking-tight">{selectedStudent.qr_code}</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 w-full">
+                  <button 
+                    onClick={() => { setSelectedStudent(null); setIsEditing(false); }}
+                    className="py-5 bg-white border border-[#F1F5F9] text-[#64748B] font-bold rounded-2xl active:scale-95 transition-transform"
+                  >
+                    Close
+                  </button>
+                  <button 
+                    onClick={startEditing}
+                    className="py-5 bg-[#4F46E5] text-white font-bold rounded-2xl active:scale-95 transition-transform shadow-lg shadow-[#4F46E5]/20"
+                  >
+                    Edit Info
+                  </button>
+                </div>
+              </>
+            ) : (
+              <form onSubmit={handleUpdate} className="w-full space-y-6">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-xl font-black text-[#1A1A1A]">Edit Profile</h3>
+                  <button type="button" onClick={() => setIsEditing(false)} className="text-[#64748B]"><X size={20} /></button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Full Name</label>
+                    <input 
+                      required
+                      value={editData.name}
+                      onChange={e => setEditData({...editData, name: e.target.value})}
+                      className="w-full px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm font-bold"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Class</label>
+                      <input 
+                        required
+                        value={editData.class}
+                        onChange={e => setEditData({...editData, class: e.target.value})}
+                        className="w-full px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Section</label>
+                      <input 
+                        required
+                        value={editData.section}
+                        onChange={e => setEditData({...editData, section: e.target.value})}
+                        className="w-full px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Unique Student ID</label>
+                    <input 
+                      required
+                      value={editData.qr_code}
+                      onChange={e => setEditData({...editData, qr_code: e.target.value})}
+                      className="w-full px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button 
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    className="py-5 border border-[#F1F5F9] text-[#64748B] font-bold rounded-2xl"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={formLoading}
+                    className="py-5 bg-[#4F46E5] text-white font-bold rounded-2xl shadow-lg shadow-[#4F46E5]/30 disabled:opacity-50"
+                  >
+                    {formLoading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
