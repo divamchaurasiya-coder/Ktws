@@ -8,6 +8,7 @@ import StudentsView from './views/StudentsView';
 import BooksView from './views/BooksView';
 import TransactionsView from './views/TransactionsView';
 import ProfileView from './views/ProfileView';
+import TeachersView from './views/TeachersView';
 import LoginView from './views/LoginView';
 
 export default function App() {
@@ -56,6 +57,7 @@ export default function App() {
       {activeTab === 'students' && <StudentsView />}
       {activeTab === 'books' && <BooksView />}
       {activeTab === 'profile' && <ProfileView />}
+      {activeTab === 'teachers' && user.role === 'admin' && <TeachersView />}
     </Layout>
   );
 }

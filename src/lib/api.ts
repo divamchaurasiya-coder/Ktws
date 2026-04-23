@@ -45,6 +45,12 @@ export const api = {
     update: (id: string, data: any) => apiFetch(`/api/students/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     bulkCreate: (students: any[]) => apiFetch('/api/students/bulk', { method: 'POST', body: JSON.stringify({ students }) }),
   },
+  teachers: {
+    list: () => apiFetch('/api/teachers'),
+    create: (data: any) => apiFetch('/api/teachers', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) => apiFetch(`/api/teachers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) => apiFetch(`/api/teachers/${id}`, { method: 'DELETE' }),
+  },
   books: {
     list: () => apiFetch('/api/books'),
     search: (q: string) => apiFetch(`/api/books/search?q=${encodeURIComponent(q)}`),

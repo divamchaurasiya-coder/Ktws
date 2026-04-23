@@ -52,6 +52,13 @@ const initializeApp = () => {
     });
   };
 
+  const checkAdmin = (req: any, res: any, next: any) => {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Unauthorized: Admin access required.' });
+    }
+    next();
+  };
+
   // --- SECTION: AUTH ---
   const authRouter = Router();
   authRouter.post('/login', async (req, res) => {
@@ -211,6 +218,52 @@ const initializeApp = () => {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // --- SECTION: TEACHERS (Admin Only) ---
+  const teachersRouter = Router();
+  teachersRouter.get('/', authenticate, checkAdmin, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.json([]);
+    const { data, error } = await client.from('profiles').select('*').order('name', { ascending: true });
+    res.json(error ? { error: error.message } : data);
+  });
+
+  teachersRouter.post('/', authenticate, checkAdmin, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Offline' });
+    try {
+      const { name, email, password, role } = req.body;
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const { data, error } = await client.from('profiles').insert([{ name, email, password: hashedPassword, role: role || 'teacher' }]).select().single();
+      if (error) throw error;
+      res.json(data);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  teachersRouter.patch('/:id', authenticate, checkAdmin, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Offline' });
+    try {
+      const updateData = { ...req.body };
+      if (updateData.password) {
+        updateData.password = await bcrypt.hash(updateData.password, 10);
+      }
+      const { data, error } = await client.from('profiles').update(updateData).eq('id', req.params.id).select().single();
+      if (error) throw error;
+      res.json(data);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  teachersRouter.delete('/:id', authenticate, checkAdmin, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Offline' });
+    try {
+      if (req.params.id === 'boot-admin') return res.status(403).json({ error: 'Cannot delete system admin.' });
+      const { error } = await client.from('profiles').delete().eq('id', req.params.id);
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // --- SECTION: BOOKS ---
   const booksRouter = Router();
   booksRouter.get('/', authenticate, async (req, res) => {
@@ -332,6 +385,7 @@ const initializeApp = () => {
   rootRouter.use('/auth', authRouter);
   rootRouter.use('/dashboard', dashboardRouter);
   rootRouter.use('/students', studentsRouter);
+  rootRouter.use('/teachers', teachersRouter);
   rootRouter.use('/books', booksRouter);
   rootRouter.use('/transactions', transRouter);
   

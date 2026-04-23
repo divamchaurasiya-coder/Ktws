@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { Home, Scan, RotateCcw, Users, BookOpen, LogOut, History, User } from 'lucide-react';
+import { Home, Scan, RotateCcw, Users, BookOpen, LogOut, History, User, Shield } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../lib/api';
 
@@ -137,6 +137,14 @@ export default function Layout({ children, activeTab, onTabChange, user, onLogou
           icon={<BookOpen size={24} />} 
           label="Books" 
         />
+        {user?.role === 'admin' && (
+          <NavItem 
+            active={activeTab === 'teachers'} 
+            onClick={() => onTabChange('teachers')} 
+            icon={<Shield size={24} />} 
+            label="Teachers" 
+          />
+        )}
       </nav>
     </div>
   );
