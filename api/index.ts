@@ -127,6 +127,17 @@ const initializeApp = () => {
     res.json(error ? { error: error.message } : data);
   });
 
+  studentsRouter.post('/', authenticate, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Offline' });
+    try {
+      const student = req.body;
+      const { data, error } = await client.from('students').insert([student]).select().single();
+      if (error) throw error;
+      res.json(data || {});
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   studentsRouter.post('/bulk', authenticate, async (req: any, res: any) => {
     if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Unauthorized: Admin access required.' });
     const client = getSupabase();
@@ -146,6 +157,17 @@ const initializeApp = () => {
     if (!client) return res.json([]);
     const { data, error } = await client.from('books').select('*').order('title', { ascending: true });
     res.json(error ? { error: error.message } : data);
+  });
+
+  booksRouter.post('/', authenticate, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Offline' });
+    try {
+      const book = req.body;
+      const { data, error } = await client.from('books').insert([book]).select().single();
+      if (error) throw error;
+      res.json(data || {});
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // --- SECTION: TRANSACTIONS ---

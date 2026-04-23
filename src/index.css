@@ -25,54 +25,18 @@
   @apply text-sm leading-relaxed;
 }
 
-/* Fix for html5-qrcode-scanner layout */
-#qr-reader {
+/* Fix for html5-qrcode layout */
+#qr-video-container {
   border: none !important;
-  background: white !important;
+  background: black !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
-#qr-reader div:first-child {
-  display: none !important;
-}
-
-#qr-reader img {
-  display: none !important;
-}
-
-#qr-reader video {
+#qr-video-container video {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
-  border-radius: 24px !important;
-}
-
-#qr-reader__scan_region {
-  padding: 0 !important;
-  background: white !important;
-}
-
-#qr-reader__dashboard {
-  background: white !important;
-  padding: 10px !important;
-  border-top: 1px solid #F1F5F9 !important;
-}
-
-#qr-reader__dashboard button {
-  background-color: #4F46E5 !important;
-  color: white !important;
-  border-radius: 12px !important;
-  padding: 8px 16px !important;
-  font-weight: bold !important;
-  border: none !important;
-  margin: 4px !important;
-  font-size: 11px !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.05em !important;
-}
-
-#qr-reader__status_span {
-  font-size: 10px !important;
-  font-weight: bold !important;
-  color: #64748B !important;
-  text-transform: uppercase !important;
+  border-radius: 0px !important;
 }
