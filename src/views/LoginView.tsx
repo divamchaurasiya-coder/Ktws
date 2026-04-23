@@ -1,6 +1,6 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { api } from '../lib/api';
-import { LogIn } from 'lucide-react';
+import { LogIn, DatabaseZap } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface LoginViewProps {
@@ -12,17 +12,37 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [dbConnected, setDbConnected] = useState(true);
+
+  useEffect(() => {
+    const checkDb = async () => {
+      try {
+        const health = await api.auth.health();
+        if (!health.supabase) {
+          setDbConnected(false);
+          setError('Error 69: Database not connected');
+        }
+      } catch (err) {
+        setDbConnected(false);
+        setError('Error 69: Connection failure');
+      }
+    };
+    checkDb();
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
     
     try {
       const data = await api.auth.login({ email, password });
       onLoginSuccess(data.user);
     } catch (err: any) {
-      setError(err.message);
+      if (err.message.includes('Database not connected') || err.message.includes('Supabase configuration missing')) {
+        setError('Error 69: Library records are currently inaccessible.');
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -42,6 +62,12 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
             </div>
             <h1 className="text-2xl font-bold text-[#1A1A1A] tracking-tighter">KTWS Library</h1>
             <p className="text-[#64748B] text-sm mt-1">Sign in to manage library</p>
+            {!dbConnected && (
+              <div className="mt-4 px-4 py-1.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 border border-orange-200">
+                <DatabaseZap size={12} />
+                Database Offline (69)
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
