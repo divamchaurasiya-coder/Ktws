@@ -12,11 +12,16 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Something went wrong');
+    let errorData;
+    try {
+      errorData = await response.json();
+    } catch (e) {
+      throw new Error(`Server Error (${response.status}): ${response.statusText}`);
+    }
+    throw new Error(errorData.error || `HTTP Error ${response.status}: ${response.statusText}`);
   }
 
-  return response.json();
+  return response.json().catch(() => ({}));
 }
 
 export const api = {

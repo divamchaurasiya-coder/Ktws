@@ -48,29 +48,46 @@ async function startServer() {
   // --- Auth Routes ---
   app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
-    
-    // In a real Supabase SaaS, we'd use supabase.auth.signInWithPassword
-    // But to keep the existing manual admin logic withbcrypt (if they don't have Supabase Auth users set up):
-    // Let's check a 'profiles' or 'users' table in Supabase
-    const { data: user, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('email', email)
-      .single();
+    console.log(`Login attempt: ${email}`);
 
-    if (error || !user || !bcrypt.compareSync(password, user.password)) {
-      // Emergency fallback for bootstrap admin if table is empty
-      if (email === 'admin@ktws.com' && bcrypt.compareSync(password, bcrypt.hashSync('admin123', 10))) {
+    try {
+      // 1. First check if it's the hardcoded bootstrap admin for initial setup/emergency
+      // This works even if Supabase is down or not configured
+      if (email === 'admin@ktws.com' && password === 'admin123') {
         const token = jwt.sign({ id: 'bootstrap-admin', email, role: 'admin', name: 'Admin' }, JWT_SECRET, { expiresIn: '24h' });
-        res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'strict' });
+        res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'strict', maxAge: 24 * 60 * 60 * 1000 });
         return res.json({ user: { id: 'bootstrap-admin', email, role: 'admin', name: 'Admin' } });
       }
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
 
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '24h' });
-    res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'strict', maxAge: 24 * 60 * 60 * 1000 });
-    res.json({ user: { id: user.id, email: user.email, role: user.role, name: user.name } });
+      // 2. Attempt Supabase lookup for regular users/synced profiles
+      if (!supabaseUrl || !supabaseKey) {
+        return res.status(503).json({ error: 'Supabase configuration missing. Use admin@ktws.com / admin123 to setup.' });
+      }
+
+      const { data: user, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (error || !user) {
+        console.error('Supabase lookup error or user not found:', error?.message);
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+
+      const validPassword = await bcrypt.compare(password, user.password);
+      if (!validPassword) {
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+
+      const token = jwt.sign({ id: user.id, email: user.email, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '24h' });
+      res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'strict', maxAge: 24 * 60 * 60 * 1000 });
+      res.json({ user: { id: user.id, email: user.email, role: user.role, name: user.name } });
+
+    } catch (err: any) {
+      console.error('Server Login Error:', err);
+      res.status(500).json({ error: 'Critical authentication failure: ' + (err.message || 'Unknown error') });
+    }
   });
 
   app.post('/api/auth/logout', (req, res) => {
