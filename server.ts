@@ -37,6 +37,7 @@ async function startServer() {
   
   // 1. Core Middlewares
   app.use(cors({ origin: true, credentials: true }));
+  app.options('*', cors()); // Enable pre-flight for all routes
   app.use(express.json());
   app.use(cookieParser());
   
@@ -46,8 +47,9 @@ async function startServer() {
     next();
   });
 
-  // 3. API Routes
+  // 3. API Routes (Mounted FIRST to avoid conflicts)
   const router = express.Router();
+  app.use('/api', router);
 
   // Health check
   router.get('/health', (req, res) => {
@@ -224,9 +226,6 @@ async function startServer() {
       res.status(500).json({ error: e.message });
     }
   });
-
-  // Mount API router
-  app.use('/api', router);
 
   // 4. Vite / Static
   if (process.env.NODE_ENV !== 'production') {
