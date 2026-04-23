@@ -93,6 +93,32 @@ const initializeApp = () => {
   authRouter.post('/logout', (req, res) => res.clearCookie('token').json({ ok: true }));
   authRouter.get('/me', authenticate, (req: any, res) => res.json({ user: req.user }));
 
+  authRouter.get('/profile', authenticate, async (req: any, res) => {
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Database Offline' });
+    try {
+      if (req.user.id === 'boot-admin') {
+        return res.json({ id: 'boot-admin', name: 'System Admin', email: 'admin@ktws.com', role: 'admin' });
+      }
+      const { data, error } = await client.from('profiles').select('id, name, email, role, avatar_url, bio, created_at').eq('id', req.user.id).single();
+      if (error) throw error;
+      res.json(data);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  authRouter.patch('/profile', authenticate, async (req: any, res) => {
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Database Offline' });
+    try {
+      if (req.user.id === 'boot-admin') {
+         return res.status(403).json({ error: 'System Admin profile cannot be modified.' });
+      }
+      const { data, error } = await client.from('profiles').update(req.body).eq('id', req.user.id).select().single();
+      if (error) throw error;
+      res.json(data);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // --- SECTION: DASHBOARD ---
   const dashboardRouter = Router();
   dashboardRouter.get('/stats', authenticate, async (req, res) => {
@@ -235,9 +261,10 @@ const initializeApp = () => {
       const { data: trans } = await client.from('transactions').select('*').eq('student_id', student.id).eq('book_id', book.id).neq('status', 'returned').limit(1).single();
       if (!trans) throw new Error('No active transaction found for this pair.');
 
-      await client.from('transactions').update({ status: 'returned', return_date: new Date().toISOString() }).eq('id', trans.id);
+      // Remove the transaction record as requested
+      await client.from('transactions').delete().eq('id', trans.id);
       await client.from('books').update({ available_copies: (book.available_copies || 0) + 1 }).eq('id', book.id);
-      res.json({ success: true, message: `Successfully returned "${book.title}" from ${student.name}.` });
+      res.json({ success: true, message: `Successfully returned "${book.title}" from ${student.name}. Record cleared.` });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 

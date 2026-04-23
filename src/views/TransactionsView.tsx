@@ -8,7 +8,7 @@ export default function TransactionsView() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState<'all' | 'issued' | 'returned' | 'overdue'>('all');
+  const [filter, setFilter] = useState<'all' | 'issued' | 'overdue'>('all');
 
   useEffect(() => {
     fetchTransactions();
@@ -53,7 +53,7 @@ export default function TransactionsView() {
             <History className="text-blue-600" />
             Issue Records
           </h1>
-          <p className="text-gray-500 text-sm">Full history of book issues and returns.</p>
+          <p className="text-gray-500 text-sm">Active records of issued books. Returned books are automatically cleared.</p>
         </div>
       </header>
 
@@ -70,7 +70,7 @@ export default function TransactionsView() {
             />
           </div>
           <div className="flex gap-2">
-            {(['all', 'issued', 'returned', 'overdue'] as const).map((f) => (
+            {(['all', 'issued', 'overdue'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -118,13 +118,11 @@ export default function TransactionsView() {
                   >
                     <td className="py-4 pl-2">
                       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        t.status === 'returned' 
-                          ? 'bg-green-100 text-green-700' 
-                          : t.status === 'overdue'
+                        t.status === 'overdue'
                           ? 'bg-red-100 text-red-700'
                           : 'bg-blue-100 text-blue-700'
                       }`}>
-                        {t.status === 'returned' ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+                        <Clock size={12} />
                         {t.status}
                       </span>
                     </td>
@@ -156,25 +154,18 @@ export default function TransactionsView() {
                           <Calendar size={12} />
                           <span>Issued: {format(new Date(t.issue_date), 'MMM dd, yyyy')}</span>
                         </div>
-                        {t.status === 'returned' ? (
-                          <div className="flex items-center gap-2 text-[10px] text-green-600 font-medium">
-                            <CheckCircle2 size={12} />
-                            <span>Returned: {format(new Date(t.return_date), 'MMM dd, yyyy')}</span>
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-2 text-[10px] text-orange-600 font-medium whitespace-nowrap">
+                            <Clock size={12} />
+                            <span>Due: {format(new Date(t.due_date), 'MMM dd, yyyy')}</span>
                           </div>
-                        ) : (
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-2 text-[10px] text-orange-600 font-medium whitespace-nowrap">
-                              <Clock size={12} />
-                              <span>Due: {format(new Date(t.due_date), 'MMM dd, yyyy')}</span>
-                            </div>
-                            <button 
-                              onClick={() => handleQuickReturn(t.book_barcode, t.student_qr)}
-                              className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline whitespace-nowrap"
-                            >
-                              Return Now
-                            </button>
-                          </div>
-                        )}
+                          <button 
+                            onClick={() => handleQuickReturn(t.book_barcode, t.student_qr)}
+                            className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline whitespace-nowrap"
+                          >
+                            Return Now
+                          </button>
+                        </div>
                       </div>
                     </td>
                   </motion.tr>

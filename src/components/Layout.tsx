@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { Home, Scan, RotateCcw, Users, BookOpen, LogOut, History } from 'lucide-react';
+import { Home, Scan, RotateCcw, Users, BookOpen, LogOut, History, User } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../lib/api';
 
@@ -33,9 +33,9 @@ export default function Layout({ children, activeTab, onTabChange, user, onLogou
       <header className="bg-white px-5 py-3 flex justify-between items-center shrink-0">
         <div className="flex items-center gap-2">
           <div className="bg-[#4F46E5] w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-lg shadow-sm">
-            K
+            L
           </div>
-          <span className="font-bold text-[#1A1A1A] text-lg tracking-tight">KTWS Library</span>
+          <span className="font-bold text-[#1A1A1A] text-lg tracking-tight">Library Management</span>
         </div>
         <div className="flex items-center gap-3">
           <button 
@@ -68,6 +68,13 @@ export default function Layout({ children, activeTab, onTabChange, user, onLogou
             </div>
 
             <div className="mt-8 space-y-3">
+              <button 
+                onClick={() => { onTabChange('profile'); setShowProfileModal(false); }}
+                className="w-full py-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-2xl font-bold flex items-center justify-center gap-2 transition-colors"
+              >
+                <User size={20} />
+                Manage Profile
+              </button>
               <button 
                 onClick={handleLogout}
                 className="w-full py-4 bg-red-50 hover:bg-red-100 text-red-600 rounded-2xl font-bold flex items-center justify-center gap-2 transition-colors"

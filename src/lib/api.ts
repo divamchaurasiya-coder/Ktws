@@ -30,6 +30,8 @@ export const api = {
     login: (credentials: any) => apiFetch('/api/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
     logout: () => apiFetch('/api/auth/logout', { method: 'POST' }),
     me: () => apiFetch('/api/auth/me'),
+    getProfile: () => apiFetch('/api/auth/profile'),
+    updateProfile: (data: any) => apiFetch('/api/auth/profile', { method: 'PATCH', body: JSON.stringify(data) }),
     health: () => apiFetch('/api/health'),
   },
   dashboard: {
