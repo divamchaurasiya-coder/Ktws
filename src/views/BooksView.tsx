@@ -405,9 +405,28 @@ export default function BooksView() {
                 <input required value={formData.author} onChange={e => setFormData({...formData, author: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold" placeholder="F. Scott Fitzgerald" />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="relative">
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Unique Barcode</label>
-                  <input required value={formData.barcode} onChange={e => setFormData({...formData, barcode: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-mono font-black" placeholder="ISBN-1234..." />
+                  <div className="flex gap-2">
+                    <input 
+                      required 
+                      value={formData.barcode} 
+                      onChange={e => setFormData({...formData, barcode: e.target.value.toUpperCase()})} 
+                      className="flex-1 px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-mono font-black" 
+                      placeholder="ISBN or ID" 
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const randomId = 'BK-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+                        setFormData({...formData, barcode: randomId});
+                      }}
+                      className="px-4 py-4 bg-white border border-gray-200 rounded-2xl text-blue-600 hover:bg-blue-50 transition-colors shadow-xs"
+                      title="Generate Random ID"
+                    >
+                      <Plus size={20} />
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Copies</label>
