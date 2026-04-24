@@ -331,13 +331,51 @@ const initializeApp = () => {
     try {
       const { data: book } = await client.from('books').select('*').eq('barcode', barcode).single();
       const { data: student } = await client.from('students').select('*').eq('qr_code', studentQR).single();
-      if (!book || !student) return res.status(404).json({ error: 'Book or Student not found.' });
+      
+      if (!book) return res.status(404).json({ error: 'Book not found. Please check the barcode.' });
+      if (!student) return res.status(404).json({ error: 'Student not found. Please check the QR code.' });
+
+      // Check if student already has a book
+      const { data: activeTrans } = await client
+        .from('transactions')
+        .select('id, books(title)')
+        .eq('student_id', student.id)
+        .neq('status', 'returned')
+        .limit(1)
+        .maybeSingle();
+
+      if (activeTrans) {
+        const bookTitle = (activeTrans as any).books?.title || 'a book';
+        return res.status(400).json({ 
+          error: `Access Denied: ${student.name} already has "${bookTitle}" issued. They must return it before issuing another.` 
+        });
+      }
+
+      // Check book availability
+      if (book.available_copies <= 0) {
+        return res.status(400).json({ error: `Inventory Alert: No available copies of "${book.title}".` });
+      }
       
       const dueDate = new Date(); dueDate.setDate(dueDate.getDate() + 7);
-      await client.from('transactions').insert([{ student_id: student.id, book_id: book.id, due_date: dueDate.toISOString(), status: 'issued' }]);
-      await client.from('books').update({ available_copies: (book.available_copies || 0) - 1 }).eq('id', book.id);
-      res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+      
+      // Perform as transaction if possible, or sequential
+      const { error: issueErr } = await client.from('transactions').insert([{ 
+        student_id: student.id, 
+        book_id: book.id, 
+        due_date: dueDate.toISOString(), 
+        status: 'issued' 
+      }]);
+      
+      if (issueErr) throw issueErr;
+
+      await client.from('books').update({ 
+        available_copies: (book.available_copies || 0) - 1 
+      }).eq('id', book.id);
+
+      res.json({ success: true, message: `Successfully issued "${book.title}" to ${student.name}.` });
+    } catch (e: any) { 
+      res.status(500).json({ error: e.message || 'Failed to complete issuance.' }); 
+    }
   });
 
   transRouter.post('/return', authenticate, async (req, res) => {
