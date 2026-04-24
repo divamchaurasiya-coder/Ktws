@@ -173,19 +173,6 @@ const initializeApp = () => {
     res.json(error ? [] : data);
   });
 
-  studentsRouter.get('/search', authenticate, async (req, res) => {
-    const client = getSupabase();
-    if (!client) return res.json([]);
-    const q = req.query.q as string;
-    if (!q) return res.json([]);
-    const { data, error } = await client
-      .from('students')
-      .select('*')
-      .or(`name.ilike.%${q}%,qr_code.ilike.%${q}%,class.ilike.%${q}%`)
-      .limit(5);
-    res.json(error ? [] : data);
-  });
-
   studentsRouter.post('/', authenticate, async (req, res) => {
     const client = getSupabase();
     if (!client) return res.status(503).json({ error: 'Offline' });
@@ -277,64 +264,6 @@ const initializeApp = () => {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
-  studentsRouter.get('/:id', authenticate, async (req, res) => {
-    const client = getSupabase();
-    if (!client) return res.status(503).json({ error: 'Offline' });
-    try {
-      const { data: student, error: sErr } = await client.from('students').select('*').eq('id', req.params.id).single();
-      if (sErr) throw sErr;
-      const { data: history, error: hErr } = await client.from('transactions').select('*, books(title, author, barcode)').eq('student_id', req.params.id).order('issue_date', { ascending: false });
-      if (hErr) throw hErr;
-      res.json({ ...student, history: history.map((h: any) => ({ ...h, book_title: h.books?.title, book_barcode: h.books?.barcode })) });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
-  });
-
-  // --- SECTION: TEACHERS (Admin Only) ---
-  const teachersRouter = Router();
-  teachersRouter.get('/', authenticate, checkAdmin, async (req, res) => {
-    const client = getSupabase();
-    if (!client) return res.json([]);
-    const { data, error } = await client.from('profiles').select('*').order('name', { ascending: true });
-    res.json(error ? { error: error.message } : data);
-  });
-
-  teachersRouter.post('/', authenticate, checkAdmin, async (req, res) => {
-    const client = getSupabase();
-    if (!client) return res.status(503).json({ error: 'Offline' });
-    try {
-      const { name, email, password, role } = req.body;
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const { data, error } = await client.from('profiles').insert([{ name, email, password: hashedPassword, role: role || 'teacher' }]).select().single();
-      if (error) throw error;
-      res.json(data);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
-  });
-
-  teachersRouter.patch('/:id', authenticate, checkAdmin, async (req, res) => {
-    const client = getSupabase();
-    if (!client) return res.status(503).json({ error: 'Offline' });
-    try {
-      const updateData = { ...req.body };
-      if (updateData.password) {
-        updateData.password = await bcrypt.hash(updateData.password, 10);
-      }
-      const { data, error } = await client.from('profiles').update(updateData).eq('id', req.params.id).select().single();
-      if (error) throw error;
-      res.json(data);
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
-  });
-
-  teachersRouter.delete('/:id', authenticate, checkAdmin, async (req, res) => {
-    const client = getSupabase();
-    if (!client) return res.status(503).json({ error: 'Offline' });
-    try {
-      if (req.params.id === 'boot-admin') return res.status(403).json({ error: 'Cannot delete system admin.' });
-      const { error } = await client.from('profiles').delete().eq('id', req.params.id);
-      if (error) throw error;
-      res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
-  });
-
   // --- SECTION: BOOKS ---
   const booksRouter = Router();
   booksRouter.get('/', authenticate, async (req, res) => {
@@ -342,19 +271,6 @@ const initializeApp = () => {
     if (!client) return res.json([]);
     const { data, error } = await client.from('books').select('*').order('title', { ascending: true });
     res.json(error ? { error: error.message } : data);
-  });
-
-  booksRouter.get('/search', authenticate, async (req, res) => {
-    const client = getSupabase();
-    if (!client) return res.json([]);
-    const q = req.query.q as string;
-    if (!q) return res.json([]);
-    const { data, error } = await client
-      .from('books')
-      .select('*')
-      .or(`title.ilike.%${q}%,author.ilike.%${q}%,barcode.ilike.%${q}%`)
-      .limit(5);
-    res.json(error ? [] : data);
   });
 
   booksRouter.get('/search', authenticate, async (req, res) => {
