@@ -326,16 +326,18 @@ const initializeApp = () => {
 
   transRouter.post('/issue', authenticate, async (req: any, res: any) => {
     const client = getSupabase();
-    if (!client) return res.status(503).json({ error: 'Database Offline' });
+    if (!client) return res.status(503).json({ error: 'Database Connection Failed' });
+    
     const { barcode, studentQR } = req.body;
     try {
-      const { data: book } = await client.from('books').select('*').eq('barcode', barcode).single();
-      const { data: student } = await client.from('students').select('*').eq('qr_code', studentQR).single();
+      // 1. Fetch current data
+      const { data: book, error: bErr } = await client.from('books').select('*').eq('barcode', barcode).single();
+      const { data: student, error: sErr } = await client.from('students').select('*').eq('qr_code', studentQR).single();
       
-      if (!book) return res.status(404).json({ error: 'Book not found. Please check the barcode.' });
-      if (!student) return res.status(404).json({ error: 'Student not found. Please check the QR code.' });
+      if (bErr || !book) return res.status(404).json({ error: `Book [${barcode}] not found in system.` });
+      if (sErr || !student) return res.status(404).json({ error: `Student [${studentQR}] not found in system.` });
 
-      // Check if student already has a book
+      // 2. Strict Limit: Check if student already has ANY non-returned book
       const { data: activeTrans } = await client
         .from('transactions')
         .select('id, books(title)')
@@ -345,20 +347,24 @@ const initializeApp = () => {
         .maybeSingle();
 
       if (activeTrans) {
-        const bookTitle = (activeTrans as any).books?.title || 'a book';
+        const activeBookTitle = (activeTrans as any).books?.title || 'an existing book';
         return res.status(400).json({ 
-          error: `Access Denied: ${student.name} already has "${bookTitle}" issued. They must return it before issuing another.` 
+          error: `POLICEY VIOLATION: ${student.name} currently holds "${activeBookTitle}". Library policy allows only 1 active book. Please return it first.` 
         });
       }
 
-      // Check book availability
-      if (book.available_copies <= 0) {
-        return res.status(400).json({ error: `Inventory Alert: No available copies of "${book.title}".` });
+      // 3. Inventory Integrity: Check availability rigorously
+      if (!book.available_copies || book.available_copies <= 0) {
+        return res.status(400).json({ 
+          error: `INVENTORY ALERT: "${book.title}" is currently out of stock. (Available: 0)` 
+        });
       }
       
-      const dueDate = new Date(); dueDate.setDate(dueDate.getDate() + 7);
+      const dueDate = new Date(); 
+      dueDate.setDate(dueDate.getDate() + 7);
       
-      // Perform as transaction if possible, or sequential
+      // 4. Atomic-ish Operations
+      // Create transaction record
       const { error: issueErr } = await client.from('transactions').insert([{ 
         student_id: student.id, 
         book_id: book.id, 
@@ -368,33 +374,73 @@ const initializeApp = () => {
       
       if (issueErr) throw issueErr;
 
-      await client.from('books').update({ 
-        available_copies: (book.available_copies || 0) - 1 
-      }).eq('id', book.id);
+      // Decrement copies (with floor check)
+      const newCount = Math.max(0, (book.available_copies || 1) - 1);
+      const { error: updateErr } = await client.from('books')
+        .update({ available_copies: newCount })
+        .eq('id', book.id);
 
-      res.json({ success: true, message: `Successfully issued "${book.title}" to ${student.name}.` });
+      if (updateErr) {
+        console.error('[ISSUE] Inventory update failed:', updateErr);
+        // We don't rollback here because Supabase lacks multi-table transactions in basic JS SDK
+        // But we log it for admin review.
+      }
+
+      res.json({ 
+        success: true, 
+        message: `Hooray! "${book.title}" issued to ${student.name}.`,
+        dueDate: dueDate.toDateString()
+      });
     } catch (e: any) { 
-      res.status(500).json({ error: e.message || 'Failed to complete issuance.' }); 
+      console.error('[ISSUE] Critical Error:', e);
+      res.status(500).json({ error: e.message || 'The library was unable to process this issuance.' }); 
     }
   });
 
   transRouter.post('/return', authenticate, async (req, res) => {
     const client = getSupabase();
-    if (!client) return res.status(503).json({ error: 'Database Offline' });
+    if (!client) return res.status(503).json({ error: 'Database Connection Failed' });
+    
     const { barcode, studentQR } = req.body;
     try {
       const { data: book } = await client.from('books').select('*').eq('barcode', barcode).single();
       const { data: student } = await client.from('students').select('*').eq('qr_code', studentQR).single();
-      if (!book || !student) return res.status(404).json({ error: 'Records not found.' });
+      
+      if (!book || !student) {
+        return res.status(404).json({ error: 'Matching records for return not found. Check barcode and student QR.' });
+      }
 
-      const { data: trans } = await client.from('transactions').select('*').eq('student_id', student.id).eq('book_id', book.id).neq('status', 'returned').limit(1).single();
-      if (!trans) throw new Error('No active transaction found for this pair.');
+      // Find the specific active transaction
+      const { data: trans, error: tErr } = await client.from('transactions')
+        .select('*')
+        .eq('student_id', student.id)
+        .eq('book_id', book.id)
+        .neq('status', 'returned')
+        .limit(1)
+        .maybeSingle();
 
-      // Mark as returned instead of deleting, to maintain student history
-      await client.from('transactions').update({ status: 'returned', return_date: new Date().toISOString() }).eq('id', trans.id);
-      await client.from('books').update({ available_copies: (book.available_copies || 0) + 1 }).eq('id', book.id);
-      res.json({ success: true, message: `Successfully returned "${book.title}" from ${student.name}.` });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+      if (tErr || !trans) {
+        return res.status(400).json({ error: `No active issuance records found for ${student.name} with "${book.title}".` });
+      }
+
+      // 1. Update transaction
+      await client.from('transactions')
+        .update({ status: 'returned', return_date: new Date().toISOString() })
+        .eq('id', trans.id);
+
+      // 2. Increment copies with cap check
+      const newCount = Math.min(book.total_copies || 999, (book.available_copies || 0) + 1);
+      await client.from('books')
+        .update({ available_copies: newCount })
+        .eq('id', book.id);
+
+      res.json({ 
+        success: true, 
+        message: `Success! ${student.name} returned "${book.title}". Inventory updated.` 
+      });
+    } catch (e: any) { 
+      res.status(500).json({ error: 'System failure during return processing: ' + e.message }); 
+    }
   });
 
   // --- MOUNTING ---
@@ -439,28 +485,5 @@ const initializeApp = () => {
   return app;
 };
 
-// Vercel Serverless Entry Point
-const handler = async (req: any, res: any) => {
-  try {
-    const app = initializeApp();
-    return app(req, res);
-  } catch (err: any) {
-    console.error('[VERCEL] Request Failure:', err);
-    res.status(500).json({ 
-      error: 'CRITICAL_BOOT_ERROR', 
-      message: err.message,
-      tip: 'The server failed to initialize lazily.' 
-    });
-  }
-};
-
-// Local Development Support
-if (!process.env.VERCEL) {
-  const devApp = initializeApp();
-  const PORT = 3000;
-  devApp.listen(PORT, '0.0.0.0', () => {
-    console.log(`[DEV] Standalone server running at http://localhost:${PORT}`);
-  });
-}
-
-export default handler;
+// Main app export
+export default appInstance || initializeApp();
