@@ -570,6 +570,33 @@ const initializeApp = () => {
     res.json({ status: 'ok', db: !!client, twilio: !!twilioClient });
   });
 
+  // --- UNIVERSAL LOOKUP ---
+  rootRouter.get('/lookup/:code', authenticate, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Offline' });
+    const { code } = req.params;
+
+    try {
+      // 1. Try Book
+      const { data: book } = await client.from('books').select('*').eq('barcode', code).maybeSingle();
+      if (book) {
+        return res.json({ type: 'book', data: book });
+      }
+
+      // 2. Try Student
+      const { data: student } = await client.from('students').select('*').eq('qr_code', code).maybeSingle();
+      if (student) {
+        // Also fetch active transactions for student
+        const { data: active } = await client.from('transactions').select('*, books(title)').eq('student_id', student.id).neq('status', 'returned');
+        return res.json({ type: 'student', data: { ...student, active_books: active } });
+      }
+
+      res.status(404).json({ error: 'No record found matching this code.' });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Resources
   rootRouter.use('/auth', authRouter);
   rootRouter.use('/dashboard', dashboardRouter);

@@ -36,6 +36,7 @@ export const api = {
   },
   dashboard: {
     getStats: () => apiFetch('/api/dashboard/stats'),
+    lookup: (code: string) => apiFetch(`/api/lookup/${code}`),
   },
   students: {
     list: () => apiFetch('/api/students'),
