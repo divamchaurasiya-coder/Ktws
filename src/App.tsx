@@ -50,7 +50,7 @@ export default function App() {
       onTabChange={setActiveTab}
       onLogout={() => setUser(null)}
     >
-      {activeTab === 'home' && <HomeView />}
+      {activeTab === 'home' && <HomeView onViewTransactions={() => setActiveTab('history')} />}
       {activeTab === 'issue' && <IssueView />}
       {activeTab === 'history' && <TransactionsView />}
       {activeTab === 'return' && <ReturnView />}

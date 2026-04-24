@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { Book, CheckCircle, Clock, Users, ArrowRight, Scan, X } from 'lucide-react';
 import { format } from 'date-fns';
 import Scanner from '../components/Scanner';
 
-export default function HomeView() {
-  const navigate = useNavigate();
+export default function HomeView({ onViewTransactions }: { onViewTransactions?: () => void }) {
   const [data, setData] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -218,7 +216,7 @@ export default function HomeView() {
         <div className="flex justify-between items-center mb-4">
           <h4 className="text-sm font-bold text-[#1A1A1A]">Recent Activity</h4>
           <button 
-            onClick={() => navigate('/transactions')}
+            onClick={() => onViewTransactions?.()}
             className="text-xs font-bold text-[#4F46E5] hover:underline"
           >
             View All
