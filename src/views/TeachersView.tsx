@@ -82,27 +82,30 @@ export default function TeachersView() {
 
       <div className="space-y-3">
         {loading ? (
-          <div className="py-10 text-center animate-pulse text-[#94A3B8] text-xs">Fetching credentials...</div>
+          <div className="py-20 text-center flex flex-col items-center gap-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="text-xs font-black text-gray-400 uppercase tracking-widest leading-none mt-2">Fetching accounts...</p>
+          </div>
         ) : filtered.length > 0 ? (
           filtered.map(teacher => (
             <div 
               key={teacher.id} 
-              className="bg-white p-5 rounded-2xl border border-[#F1F5F9] shadow-xs flex items-center gap-4 transition-colors"
+              className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4 transition-all hover:shadow-md active:scale-[0.98]"
             >
-              <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-[#4F46E5] font-bold">
+              <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 font-bold border border-blue-100">
                 {teacher.name.charAt(0)}
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold text-[#1A1A1A]">{teacher.name}</p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 overflow-hidden">
+                  <p className="text-sm font-black text-gray-900 truncate">{teacher.name}</p>
                   {teacher.role === 'admin' ? (
-                    <span className="p-0.5 text-amber-500" title="Administrator"><ShieldCheck size={14} /></span>
+                    <span className="shrink-0 p-1 bg-amber-50 rounded-lg text-amber-500" title="Administrator"><ShieldCheck size={14} /></span>
                   ) : (
-                    <span className="p-0.5 text-blue-500" title="Teacher"><Shield size={14} /></span>
+                    <span className="shrink-0 p-1 bg-blue-50 rounded-lg text-blue-500" title="Teacher"><Shield size={14} /></span>
                   )}
                 </div>
-                <div className="flex items-center gap-1.5 text-[11px] text-[#64748B] font-medium">
-                  <Mail size={12} />
+                <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5 truncate">
+                  <Mail size={12} className="shrink-0" />
                   {teacher.email}
                 </div>
               </div>
@@ -110,7 +113,7 @@ export default function TeachersView() {
               {teacher.id !== 'boot-admin' && (
                 <button 
                   onClick={() => handleDelete(teacher.id)}
-                  className="p-3 text-red-400 hover:bg-red-50 rounded-xl transition-colors"
+                  className="p-3 text-red-400 hover:bg-red-50 rounded-2xl transition-colors shrink-0"
                 >
                   <Trash2 size={18} />
                 </button>
@@ -118,7 +121,10 @@ export default function TeachersView() {
             </div>
           ))
         ) : (
-          <div className="py-10 text-center text-gray-400 text-xs italic bg-white rounded-2xl border border-dashed border-gray-200">No teachers registered</div>
+          <div className="py-20 text-center bg-gray-50 rounded-3xl border border-dashed border-gray-200">
+            <Users className="mx-auto text-gray-300 mb-2" size={32} />
+            <p className="text-xs font-black text-gray-400 uppercase tracking-widest">No staff members found</p>
+          </div>
         )}
       </div>
 

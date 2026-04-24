@@ -1,6 +1,7 @@
 import { useState, useEffect, FormEvent, useRef, ChangeEvent } from 'react';
 import { api } from '../lib/api';
-import { Users, Plus, X, Search, QrCode, FileUp, Book, Calendar, CheckCircle2, Clock } from 'lucide-react';
+import { Users, Plus, X, Search, QrCode, FileUp, Book, Calendar, CheckCircle2, Clock, History, BookOpen } from 'lucide-react';
+import { motion } from 'motion/react';
 import QRCode from 'react-qr-code';
 import Papa from 'papaparse';
 import { format } from 'date-fns';
@@ -235,152 +236,228 @@ export default function StudentsView() {
         </div>
       )}
 
-      {/* QR & Profile Details Modal */}
+      {/* Student Details Modal */}
       {selectedStudent && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 overflow-y-auto">
-          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => { setSelectedStudent(null); setIsEditing(false); }} />
-          <div className="relative w-full max-w-md bg-white rounded-t-[44px] sm:rounded-[40px] shadow-2xl p-6 sm:p-10 flex flex-col items-center my-auto min-h-[70vh]">
-            
-            {!isEditing ? (
-              <div className="w-full">
-                <div className="flex flex-col items-center mb-8">
-                  <div className="w-20 h-20 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#4F46E5] text-3xl font-black mb-4 shadow-lg shadow-[#4F46E5]/10 border-4 border-white">
-                    {selectedStudent.name.charAt(0)}
-                  </div>
-                  <h3 className="text-2xl font-black text-[#1A1A1A] mb-1">{selectedStudent.name}</h3>
-                  <p className="text-sm font-bold text-[#64748B] uppercase tracking-widest mb-6">Class {selectedStudent.class}-{selectedStudent.section}</p>
-                  
-                  <div className="p-6 bg-white border-4 border-[#F1F5F9] rounded-[32px] mb-6 shadow-xs flex items-center justify-center">
-                    <QRCode value={selectedStudent.qr_code} size={120} level="H" fgColor="#1A1A1A" />
-                  </div>
-                  
-                  <div className="w-full bg-[#F8FAFC] p-4 rounded-[20px] flex flex-col items-center gap-1 border border-[#F1F5F9]">
-                    <p className="text-[9px] font-black text-[#94A3B8] uppercase tracking-[0.2em]">Student ID Code</p>
-                    <p className="text-md font-black text-[#1A1A1A] tracking-tight">{selectedStudent.qr_code}</p>
-                  </div>
-                </div>
-
-                {/* History Section */}
-                <div className="space-y-4 mb-8">
-                  <h4 className="text-xs font-black text-[#1A1A1A] uppercase tracking-[0.1em] flex items-center gap-2">
-                    <Book size={14} className="text-[#4F46E5]" />
-                    Book History
-                  </h4>
-                  
-                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
-                    {detailLoading ? (
-                      <div className="py-4 text-center text-[#94A3B8] text-[10px] animate-pulse">Loading history...</div>
-                    ) : selectedStudent.history?.length > 0 ? (
-                      selectedStudent.history.map((h: any) => (
-                        <div key={h.id} className="p-3 bg-white border border-[#F1F5F9] rounded-xl flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${h.status === 'returned' ? 'bg-[#DCFCE7] text-[#10B981]' : 'bg-[#EEF2FF] text-[#4F46E5]'}`}>
-                            <Book size={16} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-[#1A1A1A] truncate">{h.book_title}</p>
-                            <div className="flex items-center gap-2 text-[10px] text-[#64748B]">
-                              <span>{format(new Date(h.issue_date), 'MMM dd')}</span>
-                              <span>•</span>
-                              <span className={`font-bold ${h.status === 'returned' ? 'text-[#10B981]' : 'text-[#4F46E5]'}`}>
-                                {h.status === 'returned' ? 'Returned' : 'Currently Issued'}
-                              </span>
-                            </div>
-                          </div>
-                          {h.status === 'returned' ? <CheckCircle2 size={14} className="text-[#10B981]" /> : <Clock size={14} className="text-[#4F46E5]" />}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="py-8 text-center text-gray-400 text-[10px] italic bg-[#F8FAFC] rounded-2xl border border-dashed border-gray-200">
-                        No books issued yet
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-6">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" 
+            onClick={() => { setSelectedStudent(null); setIsEditing(false); }} 
+          />
+          <motion.div 
+            initial={{ opacity: 0, y: 100, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="relative w-full max-w-lg bg-white rounded-t-[44px] sm:rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[85vh] my-auto"
+          >
+            <div className="overflow-y-auto p-6 sm:p-10 custom-scrollbar">
+              {!isEditing ? (
+                <div className="w-full">
+                  <div className="flex flex-col items-center mb-8">
+                    <div className="relative mb-6">
+                      <div className="w-24 h-24 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-600 text-3xl font-black shadow-xl shadow-blue-600/10 border-4 border-white rotate-3">
+                        {selectedStudent.name.charAt(0)}
                       </div>
-                    )}
+                      <div className="absolute -bottom-2 -right-2 bg-green-500 text-white p-2 rounded-xl shadow-lg border-2 border-white">
+                        <CheckCircle2 size={16} />
+                      </div>
+                    </div>
+                    
+                    <div className="text-center">
+                      <h3 className="text-2xl font-black text-gray-900 mb-1 leading-tight">{selectedStudent.name}</h3>
+                      <div className="flex flex-wrap justify-center gap-2 mb-6">
+                        <span className="px-3 py-1 bg-gray-100 text-gray-500 rounded-lg text-[10px] font-black uppercase tracking-widest border border-gray-200">
+                          Class {selectedStudent.class}-{selectedStudent.section}
+                        </span>
+                        <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase tracking-widest border border-blue-100">
+                          ID: {selectedStudent.qr_code}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                      <div className="p-6 bg-white border border-gray-100 rounded-[32px] shadow-sm flex flex-col items-center justify-center">
+                        <QRCode value={selectedStudent.qr_code} size={140} level="H" fgColor="#1e293b" />
+                        <p className="mt-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Scan Student ID</p>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div className="bg-gray-50 p-4 rounded-3xl border border-gray-100">
+                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</p>
+                          <p className="text-xs font-bold text-green-600 flex items-center gap-1.5">
+                            <CheckCircle2 size={14} /> Active Student
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 p-4 rounded-3xl border border-gray-100">
+                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Borrowed</p>
+                          <p className="text-sm font-black text-gray-900">
+                            {selectedStudent.history?.length || 0} Books
+                          </p>
+                        </div>
+                        <div className="bg-blue-600 p-4 rounded-3xl shadow-lg shadow-blue-600/20">
+                          <p className="text-[9px] font-black text-blue-100 uppercase tracking-widest mb-1">Current Holdings</p>
+                          <p className="text-sm font-black text-white">
+                            {selectedStudent.history?.filter((h: any) => h.status !== 'returned').length || 0} Active
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="w-full">
+                      <div className="flex items-center justify-between mb-4 px-2">
+                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                          <History size={14} className="text-blue-600" />
+                          Activity History
+                        </h4>
+                      </div>
+                      
+                      <div className="space-y-3 overflow-y-visible">
+                        {detailLoading ? (
+                          <div className="py-10 text-center flex flex-col items-center gap-2 bg-gray-50 rounded-[32px]">
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Loading Activity...</p>
+                          </div>
+                        ) : selectedStudent.history?.length > 0 ? (
+                          selectedStudent.history.map((h: any) => (
+                            <div key={h.id} className="p-4 bg-white border border-gray-100 rounded-3xl flex flex-col gap-3 hover:border-blue-200 transition-colors">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${h.status === 'returned' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                                    <Book size={16} />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-black text-gray-900 truncate leading-tight">{h.book_title}</p>
+                                    <p className="text-[9px] font-mono font-black text-gray-400 uppercase tracking-tighter">BARCODE: {h.book_barcode}</p>
+                                  </div>
+                                </div>
+                                <span className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${h.status === 'returned' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                  {h.status}
+                                </span>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="flex items-center gap-2 bg-gray-50 rounded-xl p-2">
+                                  <Calendar size={10} className="text-gray-400" />
+                                  <p className="text-[9px] font-bold text-gray-500">
+                                    {format(new Date(h.issue_date), 'MMM dd, yyyy')}
+                                  </p>
+                                </div>
+                                {h.return_date ? (
+                                  <div className="flex items-center gap-2 bg-green-50 rounded-xl p-2">
+                                    <CheckCircle2 size={10} className="text-green-500" />
+                                    <p className="text-[9px] font-bold text-green-600">
+                                      Returned {format(new Date(h.return_date), 'MMM dd')}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2 bg-orange-50 rounded-xl p-2">
+                                    <Clock size={10} className="text-orange-500" />
+                                    <p className="text-[9px] font-bold text-orange-600">
+                                      Due {format(new Date(h.due_date), 'MMM dd')}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="py-12 text-center bg-gray-50 rounded-[32px] border border-dashed border-gray-200">
+                            <History className="mx-auto text-gray-300 mb-2" size={32} />
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No Previous Activity</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 w-full mt-10">
+                    <button 
+                      onClick={() => { setSelectedStudent(null); setIsEditing(false); }}
+                      className="py-4 border border-gray-100 text-gray-500 font-black uppercase tracking-widest rounded-2xl active:scale-95 transition-all text-[10px]"
+                    >
+                      Close Profile
+                    </button>
+                    <button 
+                      onClick={startEditing}
+                      className="py-4 bg-gray-900 text-white font-black uppercase tracking-widest rounded-2xl active:scale-95 transition-all shadow-lg shadow-gray-200 text-[10px]"
+                    >
+                      Edit Account
+                    </button>
                   </div>
                 </div>
-                
-                <div className="grid grid-cols-2 gap-3 w-full">
-                  <button 
-                    onClick={() => { setSelectedStudent(null); setIsEditing(false); }}
-                    className="py-4 bg-white border border-[#F1F5F9] text-[#64748B] font-bold rounded-2xl active:scale-95 transition-transform text-sm"
-                  >
-                    Close
-                  </button>
-                  <button 
-                    onClick={startEditing}
-                    className="py-4 bg-[#4F46E5] text-white font-bold rounded-2xl active:scale-95 transition-transform shadow-lg shadow-[#4F46E5]/20 text-sm"
-                  >
-                    Edit Info
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={handleUpdate} className="w-full space-y-6">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-xl font-black text-[#1A1A1A]">Edit Profile</h3>
-                  <button type="button" onClick={() => setIsEditing(false)} className="text-[#64748B]"><X size={20} /></button>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Full Name</label>
-                    <input 
-                      required
-                      value={editData.name}
-                      onChange={e => setEditData({...editData, name: e.target.value})}
-                      className="w-full px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm font-bold"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
+              ) : (
+                <form onSubmit={handleUpdate} className="w-full space-y-6 pt-4">
+                  <div className="flex justify-between items-center mb-6">
                     <div>
-                      <label className="block text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Class</label>
+                      <h3 className="text-2xl font-black text-gray-900 leading-tight">Edit Profile</h3>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Update student data</p>
+                    </div>
+                    <button type="button" onClick={() => setIsEditing(false)} className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400"><X size={20} /></button>
+                  </div>
+
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Student Full Name</label>
                       <input 
                         required
-                        value={editData.class}
-                        onChange={e => setEditData({...editData, class: e.target.value})}
-                        className="w-full px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm font-bold"
+                        value={editData.name}
+                        onChange={e => setEditData({...editData, name: e.target.value})}
+                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold shadow-xs transition-all"
                       />
                     </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Grade / Class</label>
+                        <input 
+                          required
+                          value={editData.class}
+                          onChange={e => setEditData({...editData, class: e.target.value})}
+                          className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold shadow-xs transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Section</label>
+                        <input 
+                          required
+                          value={editData.section}
+                          onChange={e => setEditData({...editData, section: e.target.value})}
+                          className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold shadow-xs transition-all"
+                        />
+                      </div>
+                    </div>
+
                     <div>
-                      <label className="block text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Section</label>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Registration ID / QR</label>
                       <input 
                         required
-                        value={editData.section}
-                        onChange={e => setEditData({...editData, section: e.target.value})}
-                        className="w-full px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm font-bold"
+                        value={editData.qr_code}
+                        onChange={e => setEditData({...editData, qr_code: e.target.value})}
+                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-mono font-black shadow-xs transition-all"
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-black text-[#94A3B8] uppercase tracking-widest mb-1">Unique Student ID</label>
-                    <input 
-                      required
-                      value={editData.qr_code}
-                      onChange={e => setEditData({...editData, qr_code: e.target.value})}
-                      className="w-full px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden text-sm font-bold"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-6">
+                    <button 
+                      type="button"
+                      onClick={() => setIsEditing(false)}
+                      className="py-5 border border-gray-100 text-gray-400 font-black uppercase tracking-widest rounded-2xl text-[10px]"
+                    >
+                      Cancel Edit
+                    </button>
+                    <button 
+                      type="submit"
+                      disabled={formLoading}
+                      className="py-5 bg-blue-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-blue-600/20 disabled:opacity-50 text-[10px]"
+                    >
+                      {formLoading ? 'Applying...' : 'Save Profile'}
+                    </button>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  <button 
-                    type="button"
-                    onClick={() => setIsEditing(false)}
-                    className="py-5 border border-[#F1F5F9] text-[#64748B] font-bold rounded-2xl"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit"
-                    disabled={formLoading}
-                    className="py-5 bg-[#4F46E5] text-white font-bold rounded-2xl shadow-lg shadow-[#4F46E5]/30 disabled:opacity-50"
-                  >
-                    {formLoading ? 'Saving...' : 'Save Changes'}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
+                </form>
+              )}
+            </div>
+          </motion.div>
         </div>
       )}
     </div>

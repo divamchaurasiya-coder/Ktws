@@ -307,6 +307,18 @@ const initializeApp = () => {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  booksRouter.get('/:id', authenticate, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Offline' });
+    try {
+      const { data: book, error: bErr } = await client.from('books').select('*').eq('id', req.params.id).single();
+      if (bErr) throw bErr;
+      const { data: history, error: hErr } = await client.from('transactions').select('*, students(name, qr_code, class, section)').eq('book_id', req.params.id).order('issue_date', { ascending: false });
+      if (hErr) throw hErr;
+      res.json({ ...book, history: history.map((h: any) => ({ ...h, student_name: h.students?.name, student_qr: h.students?.qr_code })) });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // --- SECTION: TRANSACTIONS ---
   const transRouter = Router();
   transRouter.get('/', authenticate, async (req, res) => {
