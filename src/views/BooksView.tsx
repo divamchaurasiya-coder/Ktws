@@ -1,8 +1,9 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { api } from '../lib/api';
-import { BookOpen, Plus, X, Search, Barcode, History, User, Calendar, CheckCircle2, Clock } from 'lucide-react';
+import { BookOpen, Plus, X, Search, Barcode as BarcodeIcon, History, User, Calendar, CheckCircle2, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { format } from 'date-fns';
+import Barcode from 'react-barcode';
 
 export default function BooksView() {
   const [books, setBooks] = useState<any[]>([]);
@@ -137,7 +138,7 @@ export default function BooksView() {
                 <p className="text-[11px] text-[#64748B] font-medium truncate mb-2 leading-none">{book.author}</p>
                 <div className="flex items-center gap-2">
                   <div className="px-2 py-0.5 bg-[#F1F5F9] rounded-full text-[9px] font-bold text-[#64748B] flex items-center gap-1 uppercase tracking-wider">
-                    <Barcode size={10} /> {book.barcode}
+                    <BarcodeIcon size={10} /> {book.barcode}
                   </div>
                   <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${book.available_copies > 0 ? 'bg-[#DCFCE7] text-[#10B981]' : 'bg-[#FEE2E2] text-[#EF4444]'}`}>
                     {book.available_copies} / {book.total_copies} AVBL
@@ -195,19 +196,16 @@ export default function BooksView() {
                     </div>
                   </div>
 
-                  <div className="w-full bg-blue-600 p-6 rounded-[32px] flex items-center justify-between shadow-xl shadow-blue-600/20 mb-10">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-white">
-                        <Barcode size={24} />
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-black text-blue-100 uppercase tracking-[0.2em]">ISBN Barcode</p>
-                        <span className="text-md font-black text-white tracking-tight leading-none">{selectedBook.barcode}</span>
-                      </div>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${selectedBook.available_copies > 0 ? 'bg-green-400/20 text-green-300' : 'bg-red-400/20 text-red-300'}`}>
-                      {selectedBook.available_copies > 0 ? 'In Stock' : 'Issued Out'}
-                    </span>
+                  <div className="w-full bg-white p-6 rounded-[32px] flex flex-col items-center justify-center border border-gray-100 shadow-sm mb-10 overflow-hidden">
+                    <Barcode 
+                      value={selectedBook.barcode} 
+                      width={1.5} 
+                      height={60} 
+                      fontSize={12} 
+                      background="transparent"
+                      lineColor="#1e293b"
+                    />
+                    <p className="mt-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Scan Book Barcode</p>
                   </div>
                   
                   {/* Recent Activity for Book */}
@@ -405,7 +403,7 @@ export default function BooksView() {
                 <input required value={formData.author} onChange={e => setFormData({...formData, author: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold" placeholder="F. Scott Fitzgerald" />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="relative">
+                <div className="relative col-span-2 sm:col-span-1">
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Unique Barcode</label>
                   <div className="flex gap-2">
                     <input 
@@ -428,11 +426,23 @@ export default function BooksView() {
                     </button>
                   </div>
                 </div>
-                <div>
+                <div className="col-span-2 sm:col-span-1">
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Copies</label>
                   <input required type="number" min="1" value={formData.total_copies} onChange={e => setFormData({...formData, total_copies: parseInt(e.target.value) || 0})} className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold" />
                 </div>
               </div>
+
+              {formData.barcode && (
+                <div className="p-4 bg-white border border-gray-100 rounded-2xl flex flex-col items-center justify-center overflow-hidden">
+                  <Barcode 
+                    value={formData.barcode} 
+                    width={1.2} 
+                    height={40} 
+                    fontSize={10}
+                    background="transparent"
+                  />
+                </div>
+              )}
               <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
                 <p className="text-[10px] text-blue-600 font-bold text-center leading-relaxed">
                   Scanning this book's barcode later will instantly show this catalog entry.

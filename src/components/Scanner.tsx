@@ -50,7 +50,15 @@ export default function Scanner({ onScan, fps = 15, qrbox = 280, label, active =
         { facingMode: "environment" },
         {
           fps,
-          qrbox: { width: qrbox, height: qrbox },
+          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+            const minEdgeFraction = 0.7; // 70%
+            const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+            const qrboxSize = Math.floor(minEdgeSize * minEdgeFraction);
+            return {
+              width: qrboxSize > 300 ? 300 : qrboxSize,
+              height: qrboxSize > 300 ? 150 : qrboxSize / 2
+            };
+          },
           aspectRatio: 1.0,
         },
         (decodedText) => {
