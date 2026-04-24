@@ -63,5 +63,6 @@ export const api = {
     issue: (data: { barcode: string; studentQR: string }) => apiFetch('/api/transactions/issue', { method: 'POST', body: JSON.stringify(data) }),
     return: (data: { barcode: string; studentQR: string }) => apiFetch('/api/transactions/return', { method: 'POST', body: JSON.stringify(data) }),
     list: () => apiFetch('/api/transactions'),
+    syncOverdue: () => apiFetch('/api/transactions/sync-overdue', { method: 'POST' }),
   }
 };

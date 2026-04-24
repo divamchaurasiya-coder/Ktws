@@ -5,12 +5,20 @@ import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import twilio from 'twilio';
 
 // Global instances for reuse across warm lambda invocations
 let appInstance: Express | null = null;
 let supabase: SupabaseClient | null = null;
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-ktws-library';
+
+// --- WHATSAPP CONFIG ---
+const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN 
+  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN) 
+  : null;
+const TWILIO_FROM = process.env.TWILIO_FROM_WHATSAPP || 'whatsapp:+14155238886';
+const FINE_RATE_PER_DAY = 10; // Updated to ₹10/day
 
 // Helper to get Supabase client lazily
 const getSupabase = () => {
@@ -31,6 +39,78 @@ const getSupabase = () => {
     return null;
   }
 };
+
+// --- WHATSAPP SERVICE ---
+const sendWhatsAppNotification = async (to: string, message: string) => {
+  if (!twilioClient) {
+    console.log('[WHATSAPP MOCK] No Twilio Config. Message would have been:', message);
+    return false;
+  }
+  try {
+    // Format number to E.164 if needed, usually students provide +91
+    const formattedTo = to.startsWith('whatsapp:') ? to : `whatsapp:${to.trim().startsWith('+') ? to.trim() : '+91' + to.trim()}`;
+    await twilioClient.messages.create({
+      from: TWILIO_FROM,
+      body: message,
+      to: formattedTo
+    });
+    return true;
+  } catch (err) {
+    console.error('[WHATSAPP ERROR]', err);
+    return false;
+  }
+};
+
+// --- SYNC WORKER: OVERDUE & FINES ---
+const runOverdueSync = async () => {
+  const client = getSupabase();
+  if (!client) return;
+
+  try {
+    const now = new Date();
+    // 1. Fetch all active transactions (not returned)
+    const { data: activeRecords } = await client
+      .from('transactions')
+      .select('*, students(name, parent_phone), books(title)')
+      .neq('status', 'returned');
+
+    if (!activeRecords) return;
+
+    for (const record of activeRecords) {
+      const dueDate = new Date(record.due_date);
+      if (now > dueDate) {
+        // Calculate late days
+        const diffTime = Math.abs(now.getTime() - dueDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const fine = diffDays * FINE_RATE_PER_DAY;
+
+        // Update record if late or fine changed
+        if (record.status !== 'overdue' || record.fine_amount !== fine) {
+          await client.from('transactions').update({
+            status: 'overdue',
+            fine_amount: fine
+          }).eq('id', record.id);
+
+          // Optional: Trigger notification for newly overdue or significantly late
+          if (record.status === 'issued' && record.students?.parent_phone) {
+            await sendWhatsAppNotification(
+              record.students.parent_phone,
+              `Dear Parent, the book "${record.books?.title}" issued to ${record.students?.name} is now overdue. Current fine: ₹${fine}. Please return it immediately to avoid further charges.`
+            );
+          }
+        }
+      }
+    }
+    console.log('[SYNC] Overdue check completed at', new Date().toISOString());
+  } catch (err) {
+    console.error('[SYNC ERROR]', err);
+  }
+};
+
+// Start periodic sync (every 6 hours)
+setInterval(runOverdueSync, 6 * 60 * 60 * 1000);
+// Run once on startup after a delay to ensure DB is up
+setTimeout(runOverdueSync, 30000);
 
 const initializeApp = () => {
   if (appInstance) return appInstance;
@@ -324,13 +404,14 @@ const initializeApp = () => {
   transRouter.get('/', authenticate, async (req, res) => {
     const client = getSupabase();
     if (!client) return res.json([]);
-    const { data, error } = await client.from('transactions').select('*, students(name, class, section, qr_code), books(title, author, barcode)').neq('status', 'returned').order('issue_date', { ascending: false });
+    const { data, error } = await client.from('transactions').select('*, students(name, class, section, qr_code, parent_phone), books(title, author, barcode)').neq('status', 'returned').order('issue_date', { ascending: false });
     if (error) return res.status(500).json({ error: error.message });
     res.json(data.map((t: any) => ({ 
       ...t, 
       student_name: t.students?.name, 
       student_class: `${t.students?.class}-${t.students?.section}`,
       student_qr: t.students?.qr_code,
+      student_parent_phone: t.students?.parent_phone,
       book_title: t.books?.title,
       book_barcode: t.books?.barcode
     })));
@@ -376,26 +457,29 @@ const initializeApp = () => {
       dueDate.setDate(dueDate.getDate() + 7);
       
       // 4. Atomic-ish Operations
-      // Create transaction record
       const { error: issueErr } = await client.from('transactions').insert([{ 
         student_id: student.id, 
         book_id: book.id, 
         due_date: dueDate.toISOString(), 
-        status: 'issued' 
+        status: 'issued',
+        fine_amount: 0
       }]);
       
       if (issueErr) throw issueErr;
 
-      // Decrement copies (with floor check)
       const newCount = Math.max(0, (book.available_copies || 1) - 1);
       const { error: updateErr } = await client.from('books')
         .update({ available_copies: newCount })
         .eq('id', book.id);
 
-      if (updateErr) {
-        console.error('[ISSUE] Inventory update failed:', updateErr);
-        // We don't rollback here because Supabase lacks multi-table transactions in basic JS SDK
-        // But we log it for admin review.
+      if (updateErr) console.error('[ISSUE] Inventory update failed:', updateErr);
+
+      // Notification
+      if (student.parent_phone) {
+        await sendWhatsAppNotification(
+          student.parent_phone,
+          `Library Alert: "${book.title}" has been issued to ${student.name}. Please return it by ${dueDate.toDateString()} to avoid late fines.`
+        );
       }
 
       res.json({ 
@@ -422,7 +506,6 @@ const initializeApp = () => {
         return res.status(404).json({ error: 'Matching records for return not found. Check barcode and student QR.' });
       }
 
-      // Find the specific active transaction
       const { data: trans, error: tErr } = await client.from('transactions')
         .select('*')
         .eq('student_id', student.id)
@@ -435,24 +518,47 @@ const initializeApp = () => {
         return res.status(400).json({ error: `No active issuance records found for ${student.name} with "${book.title}".` });
       }
 
+      // Calculate final fine if not already calculated by sync
+      const now = new Date();
+      const dueDate = new Date(trans.due_date);
+      let finalFine = trans.fine_amount || 0;
+      if (now > dueDate && finalFine === 0) {
+        const diffDays = Math.ceil(Math.abs(now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+        finalFine = diffDays * FINE_RATE_PER_DAY;
+      }
+
       // 1. Update transaction
       await client.from('transactions')
-        .update({ status: 'returned', return_date: new Date().toISOString() })
+        .update({ status: 'returned', return_date: now.toISOString(), fine_amount: finalFine })
         .eq('id', trans.id);
 
-      // 2. Increment copies with cap check
+      // 2. Increment copies
       const newCount = Math.min(book.total_copies || 999, (book.available_copies || 0) + 1);
       await client.from('books')
         .update({ available_copies: newCount })
         .eq('id', book.id);
 
+      // Notification
+      if (student.parent_phone) {
+        await sendWhatsAppNotification(
+          student.parent_phone,
+          `Return Confirmation: "${book.title}" was successfully returned by ${student.name}. ${finalFine > 0 ? `Total late fine paid: ₹${finalFine}.` : 'Thank you for returning on time!'}`
+        );
+      }
+
       res.json({ 
         success: true, 
-        message: `Success! ${student.name} returned "${book.title}". Inventory updated.` 
+        message: `Success! ${student.name} returned "${book.title}". ${finalFine > 0 ? `Fine collected: ₹${finalFine}` : 'No fine.'}` 
       });
     } catch (e: any) { 
       res.status(500).json({ error: 'System failure during return processing: ' + e.message }); 
     }
+  });
+
+  // Manual Trigger for Overdue Sync (Admin only)
+  transRouter.post('/sync-overdue', authenticate, checkAdmin, async (req, res) => {
+    await runOverdueSync();
+    res.json({ success: true, message: 'Overdue sync completed and notifications sent.' });
   });
 
   // --- MOUNTING ---
@@ -461,20 +567,7 @@ const initializeApp = () => {
   // Diagnostics
   rootRouter.get('/health', async (req, res) => {
     const client = getSupabase();
-    res.json({ status: 'ok', db: !!client });
-  });
-
-  rootRouter.get('/troubleshoot', async (req, res) => {
-    if (req.query.debug === '1') {
-      return res.json({ alive: true, env: Object.keys(process.env).filter(k => k.includes('SUP') || k.includes('JWT')) });
-    }
-    const client = getSupabase();
-    let error = null;
-    if (client) {
-      const { error: dbErr } = await client.from('profiles').select('id').limit(1);
-      error = dbErr?.message;
-    } else error = "No DB Client";
-    res.json({ status: error ? 'FAILED' : 'SUCCESS', error });
+    res.json({ status: 'ok', db: !!client, twilio: !!twilioClient });
   });
 
   // Resources
@@ -485,11 +578,6 @@ const initializeApp = () => {
   rootRouter.use('/books', booksRouter);
   rootRouter.use('/transactions', transRouter);
   
-  // Backwards compatibility for the old frontend calls
-  // (We'll update the frontend, but keeping these here for safety during turn-over)
-  rootRouter.post('/issue-book', (req, res) => res.redirect(307, '/api/transactions/issue'));
-  rootRouter.post('/return-book', (req, res) => res.redirect(307, '/api/transactions/return'));
-
   app.use('/api', rootRouter);
   app.use('/', rootRouter);
 

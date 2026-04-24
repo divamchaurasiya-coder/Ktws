@@ -18,7 +18,7 @@ export default function StudentsView() {
   const [editData, setEditData] = useState<any>(null);
 
   // Form State
-  const [formData, setFormData] = useState({ name: '', class: '', section: '', qr_code: '' });
+  const [formData, setFormData] = useState({ name: '', class: '', section: '', qr_code: '', parent_phone: '' });
   const [formLoading, setFormLoading] = useState(false);
 
   useEffect(() => {
@@ -70,7 +70,8 @@ export default function StudentsView() {
       name: selectedStudent.name,
       class: selectedStudent.class,
       section: selectedStudent.section,
-      qr_code: selectedStudent.qr_code
+      qr_code: selectedStudent.qr_code,
+      parent_phone: selectedStudent.parent_phone || ''
     });
     setIsEditing(true);
   };
@@ -82,7 +83,7 @@ export default function StudentsView() {
       await api.students.create(formData);
       await fetchStudents();
       setShowAdd(false);
-      setFormData({ name: '', class: '', section: '', qr_code: '' });
+      setFormData({ name: '', class: '', section: '', qr_code: '', parent_phone: '' });
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -104,7 +105,8 @@ export default function StudentsView() {
             name: row.name || row.Name,
             class: row.class || row.Class,
             section: row.section || row.Section,
-            qr_code: row.qr_code || row.ID || row.Id
+            qr_code: row.qr_code || row.ID || row.Id,
+            parent_phone: row.parent_phone || row.Phone || row.ParentPhone
           })).filter(s => s.name && s.qr_code);
 
           if (newStudents.length > 0) {
@@ -225,6 +227,10 @@ export default function StudentsView() {
                 </div>
               </div>
               <div>
+                <label className="block text-[11px] font-bold text-[#64748B] uppercase tracking-widest mb-1">Parent Phone (WhatsApp)</label>
+                <input required value={formData.parent_phone} onChange={e => setFormData({...formData, parent_phone: e.target.value})} className="w-full px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden" placeholder="e.g. +919999999999" />
+              </div>
+              <div>
                 <label className="block text-[11px] font-bold text-[#64748B] uppercase tracking-widest mb-1">Unique Student ID</label>
                 <input required value={formData.qr_code} onChange={e => setFormData({...formData, qr_code: e.target.value})} className="w-full px-5 py-4 bg-[#F8FAFC] border border-[#F1F5F9] rounded-2xl focus:ring-2 focus:ring-[#4F46E5] outline-hidden" placeholder="e.g. STU2024001" />
               </div>
@@ -282,6 +288,27 @@ export default function StudentsView() {
                       </div>
                       
                       <div className="space-y-3">
+                        <div className="bg-gray-50 p-4 rounded-3xl border border-gray-100 flex items-center justify-between">
+                          <div className="min-w-0">
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Parent Phone</p>
+                            <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5 leading-none">
+                              {selectedStudent.parent_phone || 'None'}
+                            </p>
+                          </div>
+                          {selectedStudent.parent_phone && (
+                            <button 
+                              onClick={() => {
+                                const cleanPhone = selectedStudent.parent_phone.replace(/\D/g, '');
+                                const finalPhone = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
+                                const msg = `Hello, this is the School Library. We are contacting you regarding ${selectedStudent.name}'s library account.`;
+                                window.open(`https://wa.me/${finalPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                              }}
+                              className="p-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-colors border border-green-100"
+                            >
+                              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.185-.573c.948.517 1.947.887 3.145.887 3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.729-5.767-5.729zm3.39 8.163c-.147.411-.85.753-1.157.78-.308.028-.616.147-1.785-.311-1.168-.459-1.921-1.644-1.979-1.721-.059-.077-.471-.628-.471-1.21s.303-.859.412-.977c.108-.117.235-.147.313-.147l.225.003c.083 0 .196-.032.298.22.103.253.353.858.384.921.031.063.051.137.009.221-.042.084-.063.136-.126.209-.063.073-.133.163-.19.221-.064.066-.131.138-.056.266.075.127.333.55.714.89.49.437.904.572 1.031.635.127.064.201.053.276-.032.075-.084.321-.373.407-.5.084-.127.17-.105.285-.064.117.042.743.351.871.415s.213.095.244.148c.032.053.032.307-.116.718z"></path></svg>
+                            </button>
+                          )}
+                        </div>
                         <div className="bg-gray-50 p-4 rounded-3xl border border-gray-100">
                           <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</p>
                           <p className="text-xs font-bold text-green-600 flex items-center gap-1.5">
@@ -425,6 +452,16 @@ export default function StudentsView() {
                           className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold shadow-xs transition-all"
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Parent Phone (WhatsApp)</label>
+                      <input 
+                        required
+                        value={editData.parent_phone}
+                        onChange={e => setEditData({...editData, parent_phone: e.target.value})}
+                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold shadow-xs transition-all"
+                      />
                     </div>
 
                     <div>
