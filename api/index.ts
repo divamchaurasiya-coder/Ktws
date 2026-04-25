@@ -632,18 +632,46 @@ const initializeApp = () => {
 
       // 2. Fetch from Google Books
       const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${barcode}&key=${GOOGLE_BOOKS_KEY}`);
-      const data = await response.json();
+      let data = await response.json();
+      let info: any = null;
 
-      if (!data.items || data.items.length === 0) {
-        return res.status(404).json({ error: 'Book not found in global database. Please enter manually.' });
+      if (data.items && data.items.length > 0) {
+        info = {
+          title: data.items[0].volumeInfo.title,
+          author: data.items[0].volumeInfo.authors ? data.items[0].volumeInfo.authors[0] : 'Unknown Author',
+          description: data.items[0].volumeInfo.description || '',
+          thumbnail: data.items[0].volumeInfo.imageLinks?.thumbnail || ''
+        };
+      } else {
+        // 2.5 Try Open Library if Google fails
+        const olResponse = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${barcode}&format=json&jscmd=data`);
+        const olData = await olResponse.json();
+        const olKey = `ISBN:${barcode}`;
+        
+        if (olData[olKey]) {
+          const olBook = olData[olKey];
+          info = {
+            title: olBook.title,
+            author: olBook.authors ? olBook.authors[0].name : 'Unknown Author',
+            description: olBook.notes || '',
+            thumbnail: olBook.cover?.medium || ''
+          };
+        }
       }
 
-      const info = data.items[0].volumeInfo;
+      if (!info) {
+        // Return 404 with barcode so frontend can show manual entry
+        return res.status(404).json({ 
+          error: 'Book not found in global databases.',
+          barcode: barcode 
+        });
+      }
+
       const newBook = {
         title: info.title,
-        author: info.authors ? info.authors[0] : 'Unknown Author',
+        author: info.author,
         description: info.description || '',
-        thumbnail: info.imageLinks?.thumbnail || '',
+        thumbnail: info.thumbnail || '',
         barcode: barcode,
         total_copies: 1,
         available_copies: 1,

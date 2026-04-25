@@ -13,6 +13,8 @@ export default function BooksView() {
   const [showSmartAdd, setShowSmartAdd] = useState(false);
   const [smartScanLoading, setSmartScanLoading] = useState(false);
   const [scanResult, setScanResult] = useState<any>(null);
+  const [manualBarcode, setManualBarcode] = useState('');
+  const [manualMode, setManualMode] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedBook, setSelectedBook] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -84,6 +86,7 @@ export default function BooksView() {
 
   const handleSmartScan = async (barcode: string) => {
     setSmartScanLoading(true);
+    setManualMode(false);
     try {
       const result = await api.books.scan(barcode);
       setScanResult(result);
@@ -94,6 +97,36 @@ export default function BooksView() {
           setScanResult(null);
         }, 2000);
       }
+    } catch (err: any) {
+      if (err.status === 404) {
+        setManualBarcode(barcode);
+        setManualMode(true);
+      } else {
+        alert(err.message || 'Error scanning book');
+      }
+    } finally {
+      setSmartScanLoading(false);
+    }
+  };
+
+  const handleManualSave = async (e: FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    const data = {
+      title: formData.get('title'),
+      author: formData.get('author'),
+      barcode: manualBarcode,
+      total_copies: 1,
+      available_copies: 1,
+      status: 'available'
+    };
+
+    try {
+      setSmartScanLoading(true);
+      await api.books.create(data);
+      await fetchBooks();
+      setScanResult({ status: 'created', message: 'Manually added', data });
+      setManualMode(false);
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -512,19 +545,52 @@ export default function BooksView() {
 
             {!scanResult ? (
               <div className="space-y-6">
-                <Scanner onScan={handleSmartScan} label="Scan Book Barcode/ISBN" />
-                {smartScanLoading && (
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] animate-pulse">Contacting Google Books...</p>
-                  </div>
+                {!manualMode ? (
+                  <>
+                    <Scanner onScan={handleSmartScan} label="Scan Book Barcode/ISBN" />
+                    {smartScanLoading && (
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] animate-pulse">Searching Databases...</p>
+                      </div>
+                    )}
+                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-start gap-3">
+                      <BookOpen className="text-blue-500 shrink-0" size={18} />
+                      <p className="text-[10px] text-gray-500 font-bold leading-relaxed">
+                        Point your camera at the ISBN barcode. We'll try Google Books and Open Library first.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <form onSubmit={handleManualSave} className="space-y-4 animate-in slide-in-from-right duration-300">
+                    <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 mb-2">
+                      <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Not Found Online</p>
+                      <p className="text-[11px] text-amber-600 font-bold mt-1">Barcode: {manualBarcode}</p>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Book Title</label>
+                      <input name="title" required className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all" placeholder="Enter title" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Author</label>
+                      <input name="author" required className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all" placeholder="Enter author" />
+                    </div>
+                    <button 
+                      type="submit" 
+                      disabled={smartScanLoading}
+                      className="w-full py-4 bg-gray-900 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-gray-200 mt-2 disabled:opacity-50"
+                    >
+                      {smartScanLoading ? 'Saving...' : 'Save Book'}
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setManualMode(false)}
+                      className="w-full py-2 text-gray-400 text-[10px] font-black uppercase tracking-widest"
+                    >
+                      Retry Scan
+                    </button>
+                  </form>
                 )}
-                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-start gap-3">
-                  <BookOpen className="text-blue-500 shrink-0" size={18} />
-                  <p className="text-[10px] text-gray-500 font-bold leading-relaxed">
-                    Point your camera at the ISBN barcode. We'll automatically fetch the title, author, and description.
-                  </p>
-                </div>
               </div>
             ) : (
               <div className="space-y-6 text-center py-4">
