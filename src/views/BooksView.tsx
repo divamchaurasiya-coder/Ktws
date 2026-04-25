@@ -423,19 +423,25 @@ export default function BooksView() {
                           type="number"
                           min="0"
                           value={editData.total_copies}
-                          onChange={e => setEditData({...editData, total_copies: parseInt(e.target.value) || 0})}
+                          onChange={e => {
+                            const newTotal = parseInt(e.target.value) || 0;
+                            const diff = newTotal - editData.total_copies;
+                            setEditData({
+                              ...editData, 
+                              total_copies: newTotal,
+                              available_copies: Math.max(0, editData.available_copies + diff)
+                            });
+                          }}
                           className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold shadow-xs"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Currently Avbl</label>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Currently Avbl (Auto)</label>
                         <input 
                           type="number"
-                          min="0"
-                          max={editData.total_copies}
+                          readOnly
                           value={editData.available_copies}
-                          onChange={e => setEditData({...editData, available_copies: parseInt(e.target.value) || 0})}
-                          className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold shadow-xs"
+                          className="w-full px-5 py-4 bg-gray-100 border border-gray-100 rounded-2xl outline-none text-sm font-bold shadow-none text-gray-400 cursor-not-allowed"
                         />
                       </div>
                     </div>
