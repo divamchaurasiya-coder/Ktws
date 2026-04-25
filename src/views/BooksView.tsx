@@ -1,14 +1,18 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { api } from '../lib/api';
-import { BookOpen, Plus, X, Search, Barcode as BarcodeIcon, History, User, Calendar, CheckCircle2, Clock } from 'lucide-react';
+import { BookOpen, Plus, X, Search, Barcode as BarcodeIcon, History, User, Calendar, CheckCircle2, Clock, Scan } from 'lucide-react';
 import { motion } from 'motion/react';
 import { format } from 'date-fns';
 import Barcode from 'react-barcode';
+import Scanner from '../components/Scanner';
 
 export default function BooksView() {
   const [books, setBooks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [showSmartAdd, setShowSmartAdd] = useState(false);
+  const [smartScanLoading, setSmartScanLoading] = useState(false);
+  const [scanResult, setScanResult] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [selectedBook, setSelectedBook] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -78,6 +82,25 @@ export default function BooksView() {
     }
   };
 
+  const handleSmartScan = async (barcode: string) => {
+    setSmartScanLoading(true);
+    try {
+      const result = await api.books.scan(barcode);
+      setScanResult(result);
+      if (result.status === 'updated') {
+        await fetchBooks();
+        setTimeout(() => {
+          setShowSmartAdd(false);
+          setScanResult(null);
+        }, 2000);
+      }
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSmartScanLoading(false);
+    }
+  };
+
   const startEditing = () => {
     setEditData({
       title: selectedBook.title,
@@ -99,12 +122,22 @@ export default function BooksView() {
     <div className="space-y-6 pt-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold text-[#1A1A1A] tracking-tighter">Library Catalog</h2>
-        <button 
-          onClick={() => setShowAdd(true)}
-          className="w-10 h-10 bg-[#4F46E5] rounded-xl flex items-center justify-center text-white shadow-lg shadow-[#4F46E5]/30 active:scale-95 transition-transform"
-        >
-          <Plus size={24} />
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setShowSmartAdd(true)}
+            className="w-10 h-10 bg-[#10B981] rounded-xl flex items-center justify-center text-white shadow-lg shadow-[#10B981]/30 active:scale-95 transition-transform"
+            title="Smart Add (Scan Barcode)"
+          >
+            <Scan size={20} />
+          </button>
+          <button 
+            onClick={() => setShowAdd(true)}
+            className="w-10 h-10 bg-[#4F46E5] rounded-xl flex items-center justify-center text-white shadow-lg shadow-[#4F46E5]/30 active:scale-95 transition-transform"
+            title="Manual Add"
+          >
+            <Plus size={24} />
+          </button>
+        </div>
       </div>
 
       <div className="relative">
@@ -452,6 +485,92 @@ export default function BooksView() {
                 {formLoading ? 'Indexing Catalog...' : 'Validate & Add Item'}
               </button>
             </form>
+          </motion.div>
+        </div>
+      )}
+      {/* Smart Scan Modal */}
+      {showSmartAdd && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-0 sm:p-6">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" 
+            onClick={() => { setShowSmartAdd(false); setScanResult(null); }} 
+          />
+          <motion.div 
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative w-full max-w-md bg-white rounded-t-[44px] sm:rounded-3xl shadow-2xl p-8 overflow-hidden"
+          >
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h3 className="text-2xl font-black text-gray-900 leading-tight">Smart Scan Add</h3>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Instant barcode recognition</p>
+              </div>
+              <button onClick={() => { setShowSmartAdd(false); setScanResult(null); }} className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400"><X size={24} /></button>
+            </div>
+
+            {!scanResult ? (
+              <div className="space-y-6">
+                <Scanner onScan={handleSmartScan} label="Scan Book Barcode/ISBN" />
+                {smartScanLoading && (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] animate-pulse">Contacting Google Books...</p>
+                  </div>
+                )}
+                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-start gap-3">
+                  <BookOpen className="text-blue-500 shrink-0" size={18} />
+                  <p className="text-[10px] text-gray-500 font-bold leading-relaxed">
+                    Point your camera at the ISBN barcode. We'll automatically fetch the title, author, and description.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6 text-center py-4">
+                {scanResult.status === 'updated' ? (
+                  <div className="space-y-4 animate-in fade-in zoom-in duration-300">
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto text-green-600">
+                      <CheckCircle2 size={48} />
+                    </div>
+                    <div>
+                      <p className="text-lg font-black text-gray-900 leading-tight mb-2">Book Updated!</p>
+                      <p className="text-xs font-bold text-gray-500">{scanResult.message}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex flex-col items-center">
+                      {scanResult.data.thumbnail ? (
+                        <img 
+                          src={scanResult.data.thumbnail} 
+                          alt="Thumbnail" 
+                          referrerPolicy="no-referrer"
+                          className="w-24 h-36 object-cover rounded-xl shadow-lg mb-6 border-4 border-white rotate-2" 
+                        />
+                      ) : (
+                        <div className="w-24 h-36 bg-gray-100 rounded-xl flex items-center justify-center text-gray-300 mb-6 border-4 border-white rotate-2 shadow-lg">
+                          <BookOpen size={40} />
+                        </div>
+                      )}
+                      <h4 className="text-xl font-black text-gray-900 leading-tight px-4">{scanResult.data.title}</h4>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-2">{scanResult.data.author}</p>
+                    </div>
+
+                    <div className="p-4 bg-green-50 rounded-2xl border border-green-100">
+                      <p className="text-[11px] font-black text-green-600 uppercase tracking-widest">Successfully Added to Library</p>
+                    </div>
+
+                    <button 
+                      onClick={() => { setShowSmartAdd(false); setScanResult(null); fetchBooks(); }}
+                      className="w-full py-5 bg-gray-900 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-gray-200"
+                    >
+                      Done
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </motion.div>
         </div>
       )}

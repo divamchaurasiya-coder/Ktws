@@ -54,6 +54,10 @@ export const api = {
   },
   books: {
     list: () => apiFetch('/api/books'),
+    scan: (barcode: string) => apiFetch('/api/books/scan', {
+      method: 'POST',
+      body: JSON.stringify({ barcode })
+    }),
     search: (q: string) => apiFetch(`/api/books/search?q=${encodeURIComponent(q)}`),
     create: (data: any) => apiFetch('/api/books', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => apiFetch(`/api/books/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),

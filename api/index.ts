@@ -597,6 +597,79 @@ const initializeApp = () => {
     }
   });
 
+  // --- SMART SCAN ---
+  rootRouter.post('/books/scan', authenticate, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Offline' });
+    const { barcode } = req.body;
+    const GOOGLE_BOOKS_KEY = process.env.GOOGLE_BOOKS_API_KEY || 'AIzaSyDaqxK9d4lTU7mqM0ItU70vazyJCMZcPR0';
+
+    try {
+      // 1. Check if book exists
+      const { data: existingBook } = await client
+        .from('books')
+        .select('*')
+        .eq('barcode', barcode)
+        .maybeSingle();
+
+      if (existingBook) {
+        const { data: updated } = await client
+          .from('books')
+          .update({
+            total_copies: existingBook.total_copies + 1,
+            available_copies: existingBook.available_copies + 1
+          })
+          .eq('id', existingBook.id)
+          .select()
+          .single();
+        
+        return res.json({ 
+          status: 'updated', 
+          message: `Added another copy of "${existingBook.title}"`,
+          data: updated 
+        });
+      }
+
+      // 2. Fetch from Google Books
+      const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${barcode}&key=${GOOGLE_BOOKS_KEY}`);
+      const data = await response.json();
+
+      if (!data.items || data.items.length === 0) {
+        return res.status(404).json({ error: 'Book not found in global database. Please enter manually.' });
+      }
+
+      const info = data.items[0].volumeInfo;
+      const newBook = {
+        title: info.title,
+        author: info.authors ? info.authors[0] : 'Unknown Author',
+        description: info.description || '',
+        thumbnail: info.imageLinks?.thumbnail || '',
+        barcode: barcode,
+        total_copies: 1,
+        available_copies: 1,
+        status: 'available'
+      };
+
+      // 3. Insert into DB
+      const { data: inserted, error: insertError } = await client
+        .from('books')
+        .insert([newBook])
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      res.json({ 
+        status: 'created', 
+        message: `Successfully added "${newBook.title}" to catalog`,
+        data: inserted 
+      });
+
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Resources
   rootRouter.use('/auth', authRouter);
   rootRouter.use('/dashboard', dashboardRouter);
