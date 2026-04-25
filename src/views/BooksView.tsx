@@ -118,7 +118,7 @@ export default function BooksView() {
       barcode: manualBarcode,
       total_copies: 1,
       available_copies: 1,
-      status: 'available'
+      status: 'Available'
     };
 
     try {
