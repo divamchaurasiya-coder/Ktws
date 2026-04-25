@@ -134,6 +134,31 @@ export default function BooksView() {
     }
   };
 
+  const adjustCopies = async (book: any, delta: number) => {
+    const newTotal = Math.max(0, book.total_copies + delta);
+    const newAvbl = Math.max(0, book.available_copies + delta);
+    
+    // Safety: don't let it go below 0 or remove a book that is currently issued (if avbl is 0 and we decrement total)
+    if (delta < 0 && book.available_copies <= 0) {
+      alert("Cannot remove a copy because all copies are currently issued out.");
+      return;
+    }
+
+    try {
+      setDetailLoading(true);
+      const updated = await api.books.update(book.id, {
+        total_copies: newTotal,
+        available_copies: newAvbl
+      });
+      setSelectedBook({ ...selectedBook, ...updated });
+      await fetchBooks();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
   const startEditing = () => {
     setEditData({
       title: selectedBook.title,
@@ -246,19 +271,35 @@ export default function BooksView() {
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4 w-full mb-8">
-                    <div className="bg-gray-50 p-5 rounded-[32px] border border-gray-100/50 flex flex-col items-center text-center">
+                    <div className="bg-gray-50 p-5 rounded-[32px] border border-gray-100/50 flex flex-col items-center text-center relative group">
                       <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mb-2">
                         <CheckCircle2 size={16} className="text-green-600" />
                       </div>
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Available</p>
                       <p className="text-2xl font-black text-gray-900">{selectedBook.available_copies}</p>
                     </div>
-                    <div className="bg-gray-50 p-5 rounded-[32px] border border-gray-100/50 flex flex-col items-center text-center">
+                    <div className="bg-gray-50 p-5 rounded-[32px] border border-gray-100/50 flex flex-col items-center text-center relative group">
                       <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mb-2">
                         <BookOpen size={16} className="text-blue-600" />
                       </div>
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Copies</p>
-                      <p className="text-2xl font-black text-gray-900">{selectedBook.total_copies}</p>
+                      <div className="flex items-center gap-3">
+                        <button 
+                          onClick={() => adjustCopies(selectedBook, -1)}
+                          className="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center text-red-500 hover:bg-red-50 active:scale-90 transition-all shadow-xs"
+                          title="Remove Copy"
+                        >
+                          <X size={12} strokeWidth={3} />
+                        </button>
+                        <p className="text-2xl font-black text-gray-900">{selectedBook.total_copies}</p>
+                        <button 
+                          onClick={() => adjustCopies(selectedBook, 1)}
+                          className="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center text-green-500 hover:bg-green-50 active:scale-90 transition-all shadow-xs"
+                          title="Add Copy"
+                        >
+                          <Plus size={12} strokeWidth={3} />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
