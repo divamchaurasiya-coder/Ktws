@@ -465,12 +465,11 @@ export default function StudentsView() {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Registration ID / QR</label>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Registration ID / QR (Permanent)</label>
                       <input 
-                        required
+                        readOnly
                         value={editData.qr_code}
-                        onChange={e => setEditData({...editData, qr_code: e.target.value})}
-                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-mono font-black shadow-xs transition-all"
+                        className="w-full px-5 py-4 bg-gray-100 border border-gray-100 rounded-2xl outline-none text-sm font-mono font-black shadow-none text-gray-400 cursor-not-allowed"
                       />
                     </div>
                   </div>
