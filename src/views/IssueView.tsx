@@ -9,7 +9,8 @@ export default function IssueView() {
   const [barcode, setBarcode] = useState('');
   const [studentQR, setStudentQR] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [addingBook, setAddingBook] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string; bookNotFound?: boolean } | null>(null);
 
   // Suggestions State
   const [bookSuggestions, setBookSuggestions] = useState<any[]>([]);
@@ -100,9 +101,28 @@ export default function IssueView() {
       setMessage({ type: 'success', text: 'Book issued successfully! The student has 7 days to return it.' });
       setStep(4); // Success State
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message });
+      const isNotFound = err.message.toLowerCase().includes('not found') && err.message.toLowerCase().includes('book');
+      setMessage({ 
+        type: 'error', 
+        text: err.message,
+        bookNotFound: isNotFound
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleQuickAdd = async () => {
+    setAddingBook(true);
+    try {
+      await api.books.scan(barcode);
+      setMessage({ type: 'success', text: 'Book added to system! You can now issue it.' });
+      // Retry issue automatically after a short delay
+      setTimeout(handleIssue, 1500);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: `Failed to auto-fetch: ${err.message}. Please add manually in Books section.` });
+    } finally {
+      setAddingBook(false);
     }
   };
 
@@ -294,35 +314,51 @@ export default function IssueView() {
               <h3 className="text-sm font-bold text-[#1A1A1A] text-center mb-4 uppercase tracking-wider">Confirm Details</h3>
               
               <div className="space-y-4">
-                <div className="flex items-center gap-4 p-4 bg-[#F8FAFC] rounded-2xl border border-[#F1F5F9]">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#4F46E5] shadow-xs">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 p-4 bg-[#F8FAFC] rounded-2xl border border-[#F1F5F9]">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#4F46E5] shadow-xs self-start sm:self-center">
                     <Book size={20} />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Book Barcode</p>
-                    <p className="text-sm font-bold text-[#1A1A1A]">{barcode}</p>
+                    <p className="text-sm font-bold text-[#1A1A1A] truncate">{barcode}</p>
                   </div>
                 </div>
 
                 <div className="flex justify-center py-1 text-[#E2E8F0]">
-                  <ArrowRight size={24} />
+                  <ArrowRight size={24} className="rotate-90 sm:rotate-0" />
                 </div>
 
-                <div className="flex items-center gap-4 p-4 bg-[#F8FAFC] rounded-2xl border border-[#F1F5F9]">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#4F46E5] shadow-xs">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 p-4 bg-[#F8FAFC] rounded-2xl border border-[#F1F5F9]">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#4F46E5] shadow-xs self-start sm:self-center">
                     <User size={20} />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">Student QR</p>
-                    <p className="text-sm font-bold text-[#1A1A1A]">{studentQR}</p>
+                    <p className="text-sm font-bold text-[#1A1A1A] truncate">{studentQR}</p>
                   </div>
                 </div>
               </div>
 
               {message?.type === 'error' && (
-                <div className="bg-red-50 text-red-600 p-4 rounded-xl text-xs font-bold border border-red-100 flex gap-2 items-center italic">
-                  <AlertCircle size={14} />
-                  {message.text}
+                <div className="flex flex-col gap-3">
+                  <div className="bg-red-50 text-red-600 p-4 rounded-xl text-xs font-bold border border-red-100 flex gap-2 items-center italic">
+                    <AlertCircle size={14} />
+                    {message.text}
+                  </div>
+                  {message.bookNotFound && (
+                    <button
+                      onClick={handleQuickAdd}
+                      disabled={addingBook}
+                      className="w-full py-3 bg-green-50 text-green-700 border border-green-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-100 transition-colors flex items-center justify-center gap-2"
+                    >
+                      {addingBook ? (
+                        <div className="w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Book size={14} />
+                      )}
+                      Add Book to System & Issue
+                    </button>
+                  )}
                 </div>
               )}
 
