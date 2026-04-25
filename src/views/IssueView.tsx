@@ -1,7 +1,7 @@
 import { useState, FormEvent, useEffect, useRef } from 'react';
 import { api } from '../lib/api';
 import Scanner from '../components/Scanner';
-import { Book, User, ArrowRight, CheckCircle2, AlertCircle, Search } from 'lucide-react';
+import { Book, User, ArrowRight, CheckCircle2, AlertCircle, Search, Plus, Scan } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function IssueView() {
@@ -10,6 +10,7 @@ export default function IssueView() {
   const [studentQR, setStudentQR] = useState('');
   const [loading, setLoading] = useState(false);
   const [addingBook, setAddingBook] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string; bookNotFound?: boolean } | null>(null);
 
   // Suggestions State
@@ -112,6 +113,31 @@ export default function IssueView() {
     }
   };
 
+  const handleManualSave = async (e: FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    const data = {
+      title: formData.get('title'),
+      author: formData.get('author'),
+      barcode: barcode,
+      total_copies: 1,
+      available_copies: 1,
+      status: 'available'
+    };
+
+    setAddingBook(true);
+    try {
+      await api.books.create(data);
+      setShowManualForm(false);
+      setMessage({ type: 'success', text: 'Book added! Proceeding to issue...' });
+      setTimeout(handleIssue, 1000);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: `Failed to save: ${err.message}` });
+    } finally {
+      setAddingBook(false);
+    }
+  };
+
   const handleQuickAdd = async () => {
     setAddingBook(true);
     try {
@@ -131,6 +157,7 @@ export default function IssueView() {
     setBarcode('');
     setStudentQR('');
     setMessage(null);
+    setShowManualForm(false);
   };
 
   return (
@@ -345,19 +372,66 @@ export default function IssueView() {
                     <AlertCircle size={14} />
                     {message.text}
                   </div>
-                  {message.bookNotFound && (
-                    <button
-                      onClick={handleQuickAdd}
-                      disabled={addingBook}
-                      className="w-full py-3 bg-green-50 text-green-700 border border-green-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-100 transition-colors flex items-center justify-center gap-2"
-                    >
-                      {addingBook ? (
-                        <div className="w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Book size={14} />
-                      )}
-                      Add Book to System & Issue
-                    </button>
+                  {message.bookNotFound && !showManualForm && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        onClick={handleQuickAdd}
+                        disabled={addingBook}
+                        className="w-full py-3 bg-green-50 text-green-700 border border-green-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-100 transition-colors flex items-center justify-center gap-2"
+                      >
+                        {addingBook ? (
+                          <div className="w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Scan size={14} />
+                        )}
+                        Auto-Add
+                      </button>
+                      <button
+                        onClick={() => setShowManualForm(true)}
+                        className="w-full py-3 bg-blue-50 text-blue-700 border border-blue-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Plus size={14} />
+                        Manually Add
+                      </button>
+                    </div>
+                  )}
+
+                  {showManualForm && (
+                    <form onSubmit={handleManualSave} className="space-y-3 p-4 bg-gray-50 border border-gray-100 rounded-2xl animate-in fade-in slide-in-from-top-2">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600">
+                          <Plus size={12} />
+                        </div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Manual Book Entry</p>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Title</label>
+                          <input 
+                            name="title" 
+                            required 
+                            className="w-full p-3 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                            placeholder="Book Name"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Author</label>
+                          <input 
+                            name="author" 
+                            required 
+                            className="w-full p-3 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                            placeholder="Author Name"
+                          />
+                        </div>
+                        <button 
+                          disabled={addingBook}
+                          className="w-full py-3 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-600/20 active:scale-[0.98] transition-all disabled:opacity-50"
+                        >
+                          {addingBook ? "Saving..." : "Save & Continue"}
+                        </button>
+                      </div>
+                    </form>
                   )}
                 </div>
               )}
