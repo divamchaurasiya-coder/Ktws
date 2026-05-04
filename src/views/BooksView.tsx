@@ -1,10 +1,11 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { api } from '../lib/api';
-import { BookOpen, Plus, X, Search, Barcode as BarcodeIcon, History, User, Calendar, CheckCircle2, Clock, Scan } from 'lucide-react';
+import { BookOpen, Plus, X, Search, Barcode as BarcodeIcon, History, User, Calendar, CheckCircle2, Clock, Scan, FileDown } from 'lucide-react';
 import { motion } from 'motion/react';
 import { format } from 'date-fns';
 import Barcode from 'react-barcode';
 import Scanner from '../components/Scanner';
+import { generateBookReport } from '../lib/reportGenerator';
 
 export default function BooksView() {
   const [books, setBooks] = useState<any[]>([]);
@@ -24,6 +25,7 @@ export default function BooksView() {
   // Form State
   const [formData, setFormData] = useState({ title: '', author: '', barcode: '', total_copies: 1 });
   const [formLoading, setFormLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchBooks();
@@ -37,6 +39,28 @@ export default function BooksView() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const statsData = await api.dashboard.getStats();
+      const allBooks = await api.books.list(); // Ensure we have the latest list
+      
+      const reportStats = {
+        totalBooks: statsData.stats.totalBooks,
+        issuedBooks: statsData.stats.issuedBooks,
+        availableBooks: statsData.stats.totalBooks - statsData.stats.issuedBooks,
+        overdueBooks: statsData.stats.overdueBooks,
+        totalCategories: new Set(allBooks.map(b => b.category || 'General')).size
+      };
+
+      await generateBookReport(allBooks, reportStats);
+    } catch (err: any) {
+      alert('Export failed: ' + err.message);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -181,6 +205,18 @@ export default function BooksView() {
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold text-[#1A1A1A] tracking-tighter">Library Catalog</h2>
         <div className="flex gap-2">
+          <button 
+            onClick={handleExport}
+            disabled={exporting}
+            className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-orange-500/30 active:scale-95 transition-transform disabled:opacity-50"
+            title="Export Excel Report"
+          >
+            {exporting ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <FileDown size={20} />
+            )}
+          </button>
           <button 
             onClick={() => setShowSmartAdd(true)}
             className="w-10 h-10 bg-[#10B981] rounded-xl flex items-center justify-center text-white shadow-lg shadow-[#10B981]/30 active:scale-95 transition-transform"
