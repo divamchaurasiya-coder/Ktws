@@ -1,11 +1,12 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useRef } from 'react';
 import { api } from '../lib/api';
-import { BookOpen, Plus, X, Search, Barcode as BarcodeIcon, History, User, Calendar, CheckCircle2, Clock, Scan, FileDown } from 'lucide-react';
+import { BookOpen, Plus, X, Search, Barcode as BarcodeIcon, History, User, Calendar, CheckCircle2, Clock, Scan, FileDown, FileUp } from 'lucide-react';
 import { motion } from 'motion/react';
 import { format } from 'date-fns';
 import Barcode from 'react-barcode';
 import Scanner from '../components/Scanner';
 import { generateBookReport } from '../lib/reportGenerator';
+import ExcelJS from 'exceljs';
 
 export default function BooksView() {
   const [books, setBooks] = useState<any[]>([]);
@@ -26,6 +27,8 @@ export default function BooksView() {
   const [formData, setFormData] = useState({ title: '', author: '', barcode: '', total_copies: 1 });
   const [formLoading, setFormLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchBooks();
@@ -61,6 +64,73 @@ export default function BooksView() {
       alert('Export failed: ' + err.message);
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const arrayBuffer = await file.arrayBuffer();
+      await workbook.xlsx.load(arrayBuffer);
+      const worksheet = workbook.getWorksheet(1);
+      
+      if (!worksheet) throw new Error('Could not read worksheet');
+
+      const importedBooks: any[] = [];
+      
+      // Starting from row 12 as per the standard report layout
+      // Columns: A: SR, B: BOOK ID (barcode), C: TITLE, D: AUTHOR, E: CATEGORY, H: TOTAL
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber < 12) return;
+
+        const barcode = row.getCell(2).value?.toString();
+        const title = (row.getCell(3).value as any)?.richText ? (row.getCell(3).value as any).richText.map((rt: any) => rt.text).join('') : row.getCell(3).value?.toString();
+        const author = row.getCell(4).value?.toString();
+        const category = row.getCell(5).value?.toString() || 'General';
+        const total_copies = parseInt(row.getCell(8).value?.toString() || '1');
+
+        if (title && author) {
+          importedBooks.push({
+            barcode: barcode || `BC-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+            title,
+            author,
+            category,
+            total_copies,
+            available_copies: total_copies,
+            status: 'Available'
+          });
+        }
+      });
+
+      if (importedBooks.length === 0) {
+        throw new Error('No valid book records found in the Excel file.');
+      }
+
+      let successCount = 0;
+      for (const book of importedBooks) {
+        try {
+          await api.books.create(book);
+          successCount++;
+        } catch (err) {
+          console.warn(`Failed to import book: ${book.title}`, err);
+        }
+      }
+
+      alert(`Successfully imported ${successCount} out of ${importedBooks.length} books.`);
+      fetchBooks();
+    } catch (err: any) {
+      alert('Import failed: ' + err.message);
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -205,6 +275,25 @@ export default function BooksView() {
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold text-[#1A1A1A] tracking-tighter">Library Catalog</h2>
         <div className="flex gap-2">
+          <input 
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".xlsx"
+            className="hidden"
+          />
+          <button 
+            onClick={handleImportClick}
+            disabled={importing}
+            className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/30 active:scale-95 transition-transform disabled:opacity-50"
+            title="Import Excel Report"
+          >
+            {importing ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <FileUp size={20} />
+            )}
+          </button>
           <button 
             onClick={handleExport}
             disabled={exporting}
