@@ -46,6 +46,19 @@ CREATE TABLE public.books (
   total_copies INTEGER DEFAULT 1,
   available_copies INTEGER DEFAULT 1,
   
+  -- CBSE Required Fields
+  edition TEXT DEFAULT '1st',
+  vol TEXT DEFAULT '-',
+  publisher TEXT,
+  published_year TEXT,
+  category TEXT DEFAULT 'General',
+  source TEXT DEFAULT 'Vendor',
+  bill_no TEXT DEFAULT '-',
+  cost TEXT DEFAULT '0.00',
+
+  thumbnail TEXT,
+  description TEXT,
+
   -- The Status Field (Allowed: Available, Issued, Maintenance, Lost, Archived)
   status TEXT NOT NULL DEFAULT 'Available' 
     CHECK (status IN ('Available', 'Issued', 'Maintenance', 'Lost', 'Archived')),

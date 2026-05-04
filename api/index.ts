@@ -640,7 +640,10 @@ const initializeApp = () => {
           title: data.items[0].volumeInfo.title,
           author: data.items[0].volumeInfo.authors ? data.items[0].volumeInfo.authors[0] : 'Unknown Author',
           description: data.items[0].volumeInfo.description || '',
-          thumbnail: data.items[0].volumeInfo.imageLinks?.thumbnail || ''
+          thumbnail: data.items[0].volumeInfo.imageLinks?.thumbnail || '',
+          publisher: data.items[0].volumeInfo.publisher || 'N/A',
+          published_year: data.items[0].volumeInfo.publishedDate ? data.items[0].volumeInfo.publishedDate.split('-')[0] : '-',
+          category: data.items[0].volumeInfo.categories ? data.items[0].volumeInfo.categories[0] : 'General'
         };
       } else {
         // 2.5 Try Open Library if Google fails
@@ -654,7 +657,10 @@ const initializeApp = () => {
             title: olBook.title,
             author: olBook.authors ? olBook.authors[0].name : 'Unknown Author',
             description: olBook.notes || '',
-            thumbnail: olBook.cover?.medium || ''
+            thumbnail: olBook.cover?.medium || '',
+            publisher: olBook.publishers ? olBook.publishers[0].name : 'N/A',
+            published_year: olBook.publish_date || '-',
+            category: 'General'
           };
         }
       }
@@ -672,10 +678,18 @@ const initializeApp = () => {
         author: info.author,
         description: info.description || '',
         thumbnail: info.thumbnail || '',
+        publisher: info.publisher,
+        published_year: info.published_year,
+        category: info.category,
         barcode: barcode,
         total_copies: 1,
         available_copies: 1,
-        status: 'Available'
+        status: 'Available',
+        edition: '1st',
+        vol: '-',
+        source: 'Auto-Scanner',
+        bill_no: '-',
+        cost: '0.00'
       };
 
       // 3. Insert into DB

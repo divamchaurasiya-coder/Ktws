@@ -93,13 +93,13 @@ export async function generateBookReport(books: any[], stats: any) {
       book.barcode || '',
       book.author || '',
       book.title || '',
-      '1st', // Default edition
-      '-',   // Default vol
+      book.edition || '1st',
+      book.vol || '-',
       book.publisher || 'N/A',
       book.published_year || '-',
-      'Vendor',
-      '-',
-      '0.00',
+      book.source || 'Vendor',
+      book.bill_no || '-',
+      book.cost || '0.00',
       book.category || 'General',
       book.available_copies > 0 ? 'Available' : 'Issued'
     ]);

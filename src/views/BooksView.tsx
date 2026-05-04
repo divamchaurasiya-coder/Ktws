@@ -24,7 +24,20 @@ export default function BooksView() {
   const [editData, setEditData] = useState<any>(null);
 
   // Form State
-  const [formData, setFormData] = useState({ title: '', author: '', barcode: '', total_copies: 1 });
+  const [formData, setFormData] = useState({ 
+    title: '', 
+    author: '', 
+    barcode: '', 
+    total_copies: 1,
+    edition: '1st',
+    vol: '-',
+    publisher: '',
+    published_year: '',
+    category: 'General',
+    source: 'Vendor',
+    bill_no: '-',
+    cost: '0.00'
+  });
   const [formLoading, setFormLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -86,16 +99,21 @@ export default function BooksView() {
 
       const importedBooks: any[] = [];
       
-      // Starting from row 12 as per the standard report layout
-      // Columns: A: SR, B: BOOK ID (barcode), C: TITLE, D: AUTHOR, E: CATEGORY, H: TOTAL
+      // Columns: A: SR, B: DATE, C: ACC. NO., D: AUTHOR, E: TITLE, F: EDITION, G: VOL, H: PUBLISHER, I: YEAR, J: SOURCE, K: BILL NO, L: COST, M: CLASS NO, N: REMARKS
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber < 12) return;
 
-        const barcode = row.getCell(2).value?.toString();
-        const title = (row.getCell(3).value as any)?.richText ? (row.getCell(3).value as any).richText.map((rt: any) => rt.text).join('') : row.getCell(3).value?.toString();
+        const barcode = row.getCell(3).value?.toString();
         const author = row.getCell(4).value?.toString();
-        const category = row.getCell(5).value?.toString() || 'General';
-        const total_copies = parseInt(row.getCell(8).value?.toString() || '1');
+        const title = (row.getCell(5).value as any)?.richText ? (row.getCell(5).value as any).richText.map((rt: any) => rt.text).join('') : row.getCell(5).value?.toString();
+        const edition = row.getCell(6).value?.toString() || '1st';
+        const vol = row.getCell(7).value?.toString() || '-';
+        const publisher = row.getCell(8).value?.toString() || 'N/A';
+        const year = row.getCell(9).value?.toString() || '-';
+        const source = row.getCell(10).value?.toString() || 'Vendor';
+        const bill = row.getCell(11).value?.toString() || '-';
+        const cost = row.getCell(12).value?.toString() || '0.00';
+        const category = row.getCell(13).value?.toString() || 'General';
 
         if (title && author) {
           importedBooks.push({
@@ -103,9 +121,16 @@ export default function BooksView() {
             title,
             author,
             category,
-            total_copies,
-            available_copies: total_copies,
-            status: 'Available'
+            total_copies: 1,
+            available_copies: 1,
+            status: 'Available',
+            edition,
+            vol,
+            publisher,
+            published_year: year,
+            source,
+            bill_no: bill,
+            cost
           });
         }
       });
@@ -154,7 +179,20 @@ export default function BooksView() {
       await api.books.create(formData);
       await fetchBooks();
       setShowAdd(false);
-      setFormData({ title: '', author: '', barcode: '', total_copies: 1 });
+      setFormData({ 
+        title: '', 
+        author: '', 
+        barcode: '', 
+        total_copies: 1,
+        edition: '1st',
+        vol: '-',
+        publisher: '',
+        published_year: '',
+        category: 'General',
+        source: 'Vendor',
+        bill_no: '-',
+        cost: '0.00'
+      });
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -212,7 +250,15 @@ export default function BooksView() {
       barcode: manualBarcode,
       total_copies: 1,
       available_copies: 1,
-      status: 'Available'
+      status: 'Available',
+      edition: formData.get('edition') || '1st',
+      vol: formData.get('vol') || '-',
+      publisher: formData.get('publisher') || 'N/A',
+      published_year: formData.get('published_year') || '-',
+      category: formData.get('category') || 'General',
+      source: formData.get('source') || 'Vendor',
+      bill_no: formData.get('bill_no') || '-',
+      cost: formData.get('cost') || '0.00'
     };
 
     try {
@@ -259,7 +305,15 @@ export default function BooksView() {
       author: selectedBook.author,
       total_copies: selectedBook.total_copies,
       available_copies: selectedBook.available_copies,
-      status: selectedBook.status || 'Available'
+      status: selectedBook.status || 'Available',
+      edition: selectedBook.edition || '1st',
+      vol: selectedBook.vol || '-',
+      publisher: selectedBook.publisher || 'N/A',
+      published_year: selectedBook.published_year || '-',
+      category: selectedBook.category || 'General',
+      source: selectedBook.source || 'Vendor',
+      bill_no: selectedBook.bill_no || '-',
+      cost: selectedBook.cost || '0.00'
     });
     setIsEditing(true);
   };
@@ -543,6 +597,50 @@ export default function BooksView() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Edition</label>
+                        <input value={editData.edition} onChange={e => setEditData({...editData, edition: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold shadow-xs" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Volume (Vol)</label>
+                        <input value={editData.vol} onChange={e => setEditData({...editData, vol: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold shadow-xs" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Publisher</label>
+                        <input value={editData.publisher} onChange={e => setEditData({...editData, publisher: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold shadow-xs" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Year</label>
+                        <input value={editData.published_year} onChange={e => setEditData({...editData, published_year: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold shadow-xs" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Category / Class No.</label>
+                        <input value={editData.category} onChange={e => setEditData({...editData, category: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold shadow-xs" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Source / Vendor</label>
+                        <input value={editData.source} onChange={e => setEditData({...editData, source: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold shadow-xs" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Bill No. & Date</label>
+                        <input value={editData.bill_no} onChange={e => setEditData({...editData, bill_no: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold shadow-xs" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Cost</label>
+                        <input value={editData.cost} onChange={e => setEditData({...editData, cost: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold shadow-xs" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Total Stock</label>
                         <input 
                           type="number"
@@ -640,6 +738,50 @@ export default function BooksView() {
                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Author / Writer</label>
                 <input required value={formData.author} onChange={e => setFormData({...formData, author: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold" placeholder="F. Scott Fitzgerald" />
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Publisher</label>
+                  <input value={formData.publisher} onChange={e => setFormData({...formData, publisher: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold" placeholder="HarperCollins" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Year</label>
+                  <input value={formData.published_year} onChange={e => setFormData({...formData, published_year: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold" placeholder="2023" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Edition</label>
+                  <input value={formData.edition} onChange={e => setFormData({...formData, edition: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold" placeholder="1st" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Volume (Vol)</label>
+                  <input value={formData.vol} onChange={e => setFormData({...formData, vol: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold" placeholder="-" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Category / Class No.</label>
+                  <input value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold" placeholder="DDC Code or Name" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Source / Vendor</label>
+                  <input value={formData.source} onChange={e => setFormData({...formData, source: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold" placeholder="Vendor Name" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Bill No. & Date</label>
+                  <input value={formData.bill_no} onChange={e => setFormData({...formData, bill_no: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold" placeholder="BN-1234/2023" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Cost</label>
+                  <input value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold" placeholder="0.00" />
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative col-span-2 sm:col-span-1">
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Unique Barcode</label>
@@ -744,8 +886,20 @@ export default function BooksView() {
                       <input name="title" required className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all" placeholder="Enter title" />
                     </div>
                     <div>
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Author</label>
-                      <input name="author" required className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all" placeholder="Enter author" />
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Edition</label>
+                      <input name="edition" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all" placeholder="1st" defaultValue="1st" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Publisher</label>
+                      <input name="publisher" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all" placeholder="Publisher Name" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Year</label>
+                      <input name="published_year" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all" placeholder="2023" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Category / Class No.</label>
+                      <input name="category" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all" placeholder="General" defaultValue="General" />
                     </div>
                     <button 
                       type="submit" 
