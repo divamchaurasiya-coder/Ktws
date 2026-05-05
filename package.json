@@ -7,9 +7,10 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "tsx api/index.ts",
+    "dev": "tsx server.ts",
     "build": "vite build",
     "preview": "vite preview",
+    "start": "node server.ts",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
   },

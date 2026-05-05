@@ -1,11 +1,11 @@
-import { Express, Router } from 'express';
-import express from 'express';
+import express, { Express, Router } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import twilio from 'twilio';
+import 'dotenv/config';
 
 // Global instances for reuse across warm lambda invocations
 let appInstance: Express | null = null;
