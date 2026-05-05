@@ -113,6 +113,38 @@ export default function LibraryMapView() {
     }
   };
 
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newBookData, setNewBookData] = useState({
+    title: '',
+    author: '',
+    barcode: '',
+    category: 'General'
+  });
+
+  const handleCreateAndAssign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCell) return;
+    setAssigningLoading(true);
+    try {
+      // 1. Create the book
+      await api.books.create({
+        ...newBookData,
+        location_code: selectedCell,
+        total_copies: 1,
+        available_copies: 1,
+      });
+      
+      // 2. Refresh
+      await fetchInitialData();
+      setShowAddModal(false);
+      setNewBookData({ title: '', author: '', barcode: '', category: 'General' });
+    } catch (err: any) {
+      alert(err.message || 'Failed to create book');
+    } finally {
+      setAssigningLoading(false);
+    }
+  };
+
   if (dbError === 'DATABASE_OUTDATED') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center bg-white rounded-3xl border-2 border-dashed border-red-200">
@@ -489,6 +521,19 @@ export default function LibraryMapView() {
                           </div>
                         )}
                       </div>
+
+                      <div className="relative flex items-center gap-3 py-2">
+                        <div className="flex-1 h-px bg-gray-100" />
+                        <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest">OR</span>
+                        <div className="flex-1 h-px bg-gray-100" />
+                      </div>
+
+                      <button 
+                        onClick={() => setShowAddModal(true)}
+                        className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-100 hover:bg-emerald-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Plus size={14} /> Add Entirely New Book
+                      </button>
                     </div>
                   </div>
                 )}
@@ -556,6 +601,74 @@ export default function LibraryMapView() {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showAddModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-[40px] w-full max-w-lg overflow-hidden shadow-2xl"
+            >
+              <div className="p-8 bg-emerald-600 text-white flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-black tracking-tight">ADD NEW BOOK</h2>
+                  <p className="text-white/70 text-[10px] font-black uppercase tracking-widest mt-1">Assigning to Bin {selectedCell}</p>
+                </div>
+                <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+                  <XCircle size={24} />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateAndAssign} className="p-10 space-y-6">
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Full Title</label>
+                    <input 
+                      required
+                      placeholder="Enter book title..."
+                      className="w-full px-6 py-4 bg-gray-50 border-2 border-gray-50 rounded-2xl font-bold focus:border-emerald-500 focus:bg-white outline-none transition-all"
+                      value={newBookData.title}
+                      onChange={e => setNewBookData({ ...newBookData, title: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Author Name</label>
+                    <input 
+                      required
+                      placeholder="Enter author..."
+                      className="w-full px-6 py-4 bg-gray-50 border-2 border-gray-50 rounded-2xl font-bold focus:border-emerald-500 focus:bg-white outline-none transition-all"
+                      value={newBookData.author}
+                      onChange={e => setNewBookData({ ...newBookData, author: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Accession / Barcode No.</label>
+                    <input 
+                      required
+                      placeholder="Scan or type barcode..."
+                      className="w-full px-6 py-4 bg-gray-50 border-2 border-gray-50 rounded-2xl font-bold focus:border-emerald-500 focus:bg-white outline-none transition-all"
+                      value={newBookData.barcode}
+                      onChange={e => setNewBookData({ ...newBookData, barcode: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-6">
+                  <button 
+                    type="submit"
+                    disabled={assigningLoading}
+                    className="w-full py-5 bg-emerald-600 text-white rounded-[24px] font-black text-sm shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-95 transition-all flex items-center justify-center gap-3"
+                  >
+                    {assigningLoading ? 'REGISTERING...' : 'REGISTER & ASSIGN TO SHELF'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
