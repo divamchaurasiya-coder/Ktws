@@ -14,25 +14,24 @@ let supabase: SupabaseClient | null = null;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-ktws-library';
 
 // --- WHATSAPP CONFIG ---
-const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN 
-  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN) 
-  : null;
 const TWILIO_FROM = process.env.TWILIO_FROM_WHATSAPP || 'whatsapp:+14155238886';
 const FINE_RATE_PER_DAY = 10; // Updated to ₹10/day
 
 // Helper to get Supabase client lazily
 const getSupabase = () => {
   if (supabase) return supabase;
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+  
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
   
   if (!url || !key) {
-    console.warn('[BACKEND] Missing Database Credentials');
+    console.warn('[BACKEND] Database configuration missing. Expected SUPABASE_URL and SUPABASE_ANON_KEY.');
     return null;
   }
 
   try {
     supabase = createClient(url, key);
+    console.log('[BACKEND] Supabase client initialized.');
     return supabase;
   } catch (e) {
     console.error('[BACKEND] Supabase initialization failed:', e);
@@ -40,16 +39,38 @@ const getSupabase = () => {
   }
 };
 
+let _twilioClient: any = null;
+const getTwilio = () => {
+  if (_twilioClient) return _twilioClient;
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  const auth = process.env.TWILIO_AUTH_TOKEN;
+  if (sid && auth) {
+    try {
+      _twilioClient = twilio(sid, auth);
+      return _twilioClient;
+    } catch (e) {
+      console.error('[BACKEND] Twilio initialization failed:', e);
+      return null;
+    }
+  }
+  return null;
+};
+
+// --- WHATSAPP CONFIG ---
+const TWILIO_FROM = process.env.TWILIO_FROM_WHATSAPP || 'whatsapp:+14155238886';
+const FINE_RATE_PER_DAY = 10; // Updated to ₹10/day
+
 // --- WHATSAPP SERVICE ---
 const sendWhatsAppNotification = async (to: string, message: string) => {
-  if (!twilioClient) {
+  const client = getTwilio();
+  if (!client) {
     console.log('[WHATSAPP MOCK] No Twilio Config. Message would have been:', message);
     return false;
   }
   try {
     // Format number to E.164 if needed, usually students provide +91
     const formattedTo = to.startsWith('whatsapp:') ? to : `whatsapp:${to.trim().startsWith('+') ? to.trim() : '+91' + to.trim()}`;
-    await twilioClient.messages.create({
+    await client.messages.create({
       from: TWILIO_FROM,
       body: message,
       to: formattedTo
@@ -633,7 +654,17 @@ const initializeApp = () => {
   // Diagnostics
   rootRouter.get('/health', async (req, res) => {
     const client = getSupabase();
-    res.json({ status: 'ok', db: !!client, twilio: !!twilioClient });
+    const twilioClient = getTwilio();
+    res.json({ 
+      status: 'ok', 
+      db: !!client, 
+      twilio: !!twilioClient,
+      env: {
+        hasSupabaseUrl: !!(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL),
+        hasSupabaseKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY),
+        nodeEnv: process.env.NODE_ENV
+      }
+    });
   });
 
   // --- UNIVERSAL LOOKUP ---
