@@ -6,6 +6,11 @@ import bcrypt from 'bcryptjs';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import twilio from 'twilio';
 import 'dotenv/config';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Global instances for reuse across warm lambda invocations
 let appInstance: Express | null = null;
@@ -55,10 +60,6 @@ const getTwilio = () => {
   }
   return null;
 };
-
-// --- WHATSAPP CONFIG ---
-const TWILIO_FROM = process.env.TWILIO_FROM_WHATSAPP || 'whatsapp:+14155238886';
-const FINE_RATE_PER_DAY = 10; // Updated to ₹10/day
 
 // --- WHATSAPP SERVICE ---
 const sendWhatsAppNotification = async (to: string, message: string) => {
