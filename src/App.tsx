@@ -9,6 +9,7 @@ import BooksView from './views/BooksView';
 import TransactionsView from './views/TransactionsView';
 import ProfileView from './views/ProfileView';
 import TeachersView from './views/TeachersView';
+import LibraryMapView from './views/LibraryMapView';
 import LoginView from './views/LoginView';
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
 
   useEffect(() => {
     checkAuth();
+    (window as any).setActiveTab = setActiveTab;
   }, []);
 
   const checkAuth = async () => {
@@ -56,6 +58,7 @@ export default function App() {
       {activeTab === 'return' && <ReturnView />}
       {activeTab === 'students' && <StudentsView />}
       {activeTab === 'books' && <BooksView />}
+      {activeTab === 'map' && <LibraryMapView />}
       {activeTab === 'profile' && <ProfileView />}
       {activeTab === 'teachers' && user.role === 'admin' && <TeachersView />}
     </Layout>

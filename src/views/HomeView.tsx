@@ -71,19 +71,34 @@ export default function HomeView({ onViewTransactions }: { onViewTransactions?: 
         <p className="text-[#64748B] text-sm mt-1">Ready to manage the library today?</p>
       </div>
 
-      {/* Scan Hero */}
-      <button 
-        onClick={() => setShowQuickScan(true)}
-        className="w-full text-left bg-[#4F46E5] rounded-[24px] p-5 text-white flex justify-between items-center shadow-lg shadow-[#4F46E5]/30 active:scale-[0.98] transition-transform"
-      >
-        <div>
-          <h3 className="text-lg font-bold">Quick Lookup</h3>
-          <p className="text-white/80 text-[12px] mt-1">Scan QR or ISBN for instant info</p>
-        </div>
-        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-[#4F46E5] shadow-md">
-          <Scan size={24} strokeWidth={2.5} />
-        </div>
-      </button>
+      {/* Actions Grid */}
+      <div className="grid grid-cols-2 gap-3">
+        <button 
+          onClick={() => setShowQuickScan(true)}
+          className="col-span-2 text-left bg-[#4F46E5] rounded-[24px] p-5 text-white flex justify-between items-center shadow-lg shadow-[#4F46E5]/30 active:scale-[0.98] transition-transform"
+        >
+          <div>
+            <h3 className="text-lg font-bold">Quick Lookup</h3>
+            <p className="text-white/80 text-[12px] mt-1">Scan QR or ISBN for instant info</p>
+          </div>
+          <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-[#4F46E5] shadow-md">
+            <Scan size={24} strokeWidth={2.5} />
+          </div>
+        </button>
+
+        <button 
+          onClick={() => (window as any).setActiveTab?.('map')}
+          className="col-span-2 sm:col-span-1 text-left bg-white rounded-[24px] p-5 text-gray-900 border border-gray-100 flex justify-between items-center shadow-xs active:scale-[0.98] transition-all hover:border-indigo-100 group"
+        >
+          <div>
+            <h3 className="text-base font-bold">Library Map</h3>
+            <p className="text-gray-400 text-[10px] uppercase font-black mt-1 tracking-widest">Visual Locator</p>
+          </div>
+          <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 transition-colors group-hover:bg-indigo-600 group-hover:text-white">
+            <Book size={20} />
+          </div>
+        </button>
+      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3">

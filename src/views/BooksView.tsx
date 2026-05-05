@@ -36,7 +36,8 @@ export default function BooksView() {
     category: 'General',
     source: 'Vendor',
     bill_no: '-',
-    cost: '0.00'
+    cost: '0.00',
+    location_code: ''
   });
   const [formLoading, setFormLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -191,12 +192,32 @@ export default function BooksView() {
         category: 'General',
         source: 'Vendor',
         bill_no: '-',
-        cost: '0.00'
+        cost: '0.00',
+        location_code: ''
       });
     } catch (err: any) {
       alert(err.message);
     } finally {
       setFormLoading(false);
+    }
+  };
+
+  const findEmptySlot = async () => {
+    try {
+      const locations = await api.books.getLocations();
+      const racks = ['A', 'B', 'C', 'D'];
+      const slots = Array.from({ length: 10 }, (_, i) => i + 1);
+
+      for (const r of racks) {
+        for (const s of slots) {
+          const code = `${r}-${s.toString().padStart(2, '0')}`;
+          if (!locations[code]) return code;
+        }
+      }
+      return null;
+    } catch (err) {
+      console.error(err);
+      return null;
     }
   };
 
@@ -243,22 +264,22 @@ export default function BooksView() {
 
   const handleManualSave = async (e: FormEvent) => {
     e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
     const data = {
-      title: formData.get('title'),
-      author: formData.get('author'),
+      title: formData.title,
+      author: formData.author,
       barcode: manualBarcode,
       total_copies: 1,
       available_copies: 1,
       status: 'Available',
-      edition: formData.get('edition') || '1st',
-      vol: formData.get('vol') || '-',
-      publisher: formData.get('publisher') || 'N/A',
-      published_year: formData.get('published_year') || '-',
-      category: formData.get('category') || 'General',
-      source: formData.get('source') || 'Vendor',
-      bill_no: formData.get('bill_no') || '-',
-      cost: formData.get('cost') || '0.00'
+      edition: formData.edition || '1st',
+      vol: formData.vol || '-',
+      publisher: formData.publisher || 'N/A',
+      published_year: formData.published_year || '-',
+      category: formData.category || 'General',
+      source: formData.source || 'Vendor',
+      bill_no: formData.bill_no || '-',
+      cost: formData.cost || '0.00',
+      location_code: formData.location_code || ''
     };
 
     try {
@@ -313,7 +334,8 @@ export default function BooksView() {
       category: selectedBook.category || 'General',
       source: selectedBook.source || 'Vendor',
       bill_no: selectedBook.bill_no || '-',
-      cost: selectedBook.cost || '0.00'
+      cost: selectedBook.cost || '0.00',
+      location_code: selectedBook.location_code || ''
     });
     setIsEditing(true);
   };
@@ -640,6 +662,24 @@ export default function BooksView() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
+                      <div className="relative">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Shelf Location (A-01)</label>
+                        <div className="flex gap-2">
+                          <input value={editData.location_code} onChange={e => setEditData({...editData, location_code: e.target.value.toUpperCase()})} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold shadow-xs" placeholder="A-01" />
+                          <button 
+                            type="button"
+                            onClick={async () => {
+                              const slot = await findEmptySlot();
+                              if (slot) setEditData({...editData, location_code: slot});
+                              else alert('No empty slots found!');
+                            }}
+                            className="bg-gray-100 text-gray-500 px-3 rounded-2xl font-bold text-xs hover:bg-gray-200"
+                            title="Auto Find"
+                          >
+                            <Scan size={14} />
+                          </button>
+                        </div>
+                      </div>
                       <div>
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Total Stock</label>
                         <input 
@@ -783,6 +823,28 @@ export default function BooksView() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
+                <div className="relative">
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Shelf Location (A-01)</label>
+                  <div className="flex gap-2">
+                    <input 
+                      value={formData.location_code} 
+                      onChange={e => setFormData({...formData, location_code: e.target.value.toUpperCase()})} 
+                      className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold" 
+                      placeholder="A-01" 
+                    />
+                    <button 
+                      type="button"
+                      onClick={async () => {
+                        const slot = await findEmptySlot();
+                        if (slot) setFormData({...formData, location_code: slot});
+                        else alert('No empty slots found!');
+                      }}
+                      className="bg-gray-100 text-gray-500 px-3 rounded-2xl font-bold text-xs hover:bg-gray-200"
+                    >
+                      <Scan size={14} />
+                    </button>
+                  </div>
+                </div>
                 <div className="relative col-span-2 sm:col-span-1">
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Unique Barcode</label>
                   <div className="flex gap-2">

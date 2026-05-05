@@ -387,6 +387,62 @@ const initializeApp = () => {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  booksRouter.get('/locations', authenticate, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.json({});
+    try {
+      const { data, error } = await client
+        .from('books')
+        .select('barcode, title, author, location_code')
+        .not('location_code', 'is', null);
+      
+      const locationMap: Record<string, any> = {};
+      if (data) {
+        data.forEach(book => {
+          if (book.location_code) {
+            locationMap[book.location_code] = {
+              barcode: book.barcode,
+              title: book.title,
+              author: book.author
+            };
+          }
+        });
+      }
+      res.json(locationMap);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  booksRouter.post('/assign-location', authenticate, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Offline' });
+    const { barcode, location_code } = req.body;
+    try {
+      // Check if location is already taken
+      const { data: existing } = await client
+        .from('books')
+        .select('title')
+        .eq('location_code', location_code)
+        .neq('barcode', barcode)
+        .maybeSingle();
+
+      if (existing) {
+        return res.status(400).json({ error: `Location ${location_code} is already occupied by "${existing.title}"` });
+      }
+
+      const { error } = await client
+        .from('books')
+        .update({ location_code })
+        .eq('barcode', barcode);
+
+      if (error) throw error;
+      res.json({ success: true, message: `Book assigned to ${location_code}` });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   booksRouter.get('/:id', authenticate, async (req, res) => {
     const client = getSupabase();
     if (!client) return res.status(503).json({ error: 'Offline' });

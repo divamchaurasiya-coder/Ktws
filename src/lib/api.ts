@@ -62,6 +62,8 @@ export const api = {
     create: (data: any) => apiFetch('/api/books', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => apiFetch(`/api/books/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     getDetail: (id: string) => apiFetch(`/api/books/${id}`),
+    getLocations: () => apiFetch('/api/books/locations'),
+    assignLocation: (barcode: string, location_code: string) => apiFetch('/api/books/assign-location', { method: 'POST', body: JSON.stringify({ barcode, location_code }) }),
     lookup: (code: string) => apiFetch(`/api/books/lookup/${code}`),
   },
   transactions: {
