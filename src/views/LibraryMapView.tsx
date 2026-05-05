@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
-import { Search, Map as MapIcon, Info, CheckCircle2, XCircle, MousePointer2, AlertCircle } from 'lucide-react';
+import { Search, Map as MapIcon, Info, CheckCircle2, XCircle, MousePointer2, Settings, Plus, Trash2, Save, MoreVertical, LayoutIcon, Columns } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const RACKS = ['A', 'B', 'C', 'D'];
-const SLOTS = Array.from({ length: 10 }, (_, i) => i + 1);
+interface MapConfig {
+  racks: string[];
+  slots_per_rack: number;
+  layout: 'grid' | 'aisle';
+}
 
 export default function LibraryMapView() {
   const [locationMap, setLocationMap] = useState<Record<string, any>>({});
@@ -12,21 +15,58 @@ export default function LibraryMapView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
   const [highlightedCell, setHighlightedCell] = useState<string | null>(null);
-  const [assigningBarcode, setAssigningBarcode] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
+
+  const [config, setConfig] = useState<MapConfig>({
+    racks: ['A', 'B', 'C', 'D'],
+    slots_per_rack: 10,
+    layout: 'grid'
+  });
+
+  const [pendingConfig, setPendingConfig] = useState<MapConfig>(config);
 
   useEffect(() => {
-    fetchLocations();
+    fetchInitialData();
   }, []);
 
-  const fetchLocations = async () => {
+  const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const data = await api.books.getLocations();
-      setLocationMap(data);
+      const [mapData, configData] = await Promise.all([
+        api.books.getLocations(),
+        api.settings.getMap()
+      ]);
+      
+      if (mapData.error) {
+        if (mapData.error.includes('location_code')) {
+          setDbError('DATABASE_OUTDATED');
+        } else {
+          setDbError(mapData.error);
+        }
+      } else {
+        setLocationMap(mapData);
+      }
+
+      if (configData && configData.racks) {
+        setConfig(configData);
+        setPendingConfig(configData);
+      }
     } catch (err) {
-      console.error('Failed to fetch locations', err);
+      console.error('Failed to fetch initial data', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveConfig = async () => {
+    try {
+      await api.settings.saveMap(pendingConfig);
+      setConfig(pendingConfig);
+      setShowSettings(false);
+      fetchInitialData(); // Refresh slots
+    } catch (err) {
+      alert('Failed to save settings');
     }
   };
 
@@ -41,7 +81,6 @@ export default function LibraryMapView() {
         if (book.location_code) {
           setHighlightedCell(book.location_code);
           setSelectedCell(book.location_code);
-          // Auto-scroll logic could go here if needed
         } else {
           alert(`Book "${book.title}" found but has no assigned location.`);
         }
@@ -53,197 +92,372 @@ export default function LibraryMapView() {
     }
   };
 
-  const handleCellClick = (locationCode: string) => {
-    setSelectedCell(locationCode);
-    setHighlightedCell(null);
-  };
+  if (dbError === 'DATABASE_OUTDATED') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center bg-white rounded-3xl border-2 border-dashed border-red-200">
+        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 text-red-500">
+          <XCircle size={40} />
+        </div>
+        <h2 className="text-2xl font-black text-gray-900 tracking-tighter">DATABASE UPDATE REQUIRED</h2>
+        <p className="text-gray-500 max-w-md mt-2 font-medium">
+          The 'location_code' column is missing from your database. Please visit the **DATABASE_SCHEMA.md** file and run the migration SQL in your Supabase SQL Editor.
+        </p>
+        <button 
+          onClick={fetchInitialData}
+          className="mt-8 px-8 py-4 bg-gray-900 text-white rounded-2xl font-bold hover:bg-gray-800 transition-all"
+        >
+          Check Connectivity Again
+        </button>
+      </div>
+    );
+  }
 
-  const bookAtSelected = selectedCell ? locationMap[selectedCell] : null;
+  const SLOTS = Array.from({ length: config.slots_per_rack }, (_, i) => i + 1);
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-20">
+    <div className="space-y-6 max-w-7xl mx-auto pb-20 px-4">
       {/* Header & Search */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-black text-[#1A1A1A] tracking-tighter flex items-center gap-3">
-            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-200">
-              <MapIcon size={24} />
+          <h1 className="text-4xl font-black text-[#1A1A1A] tracking-tighter flex items-center gap-4">
+            <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-2xl shadow-indigo-200">
+              <MapIcon size={28} />
             </div>
             LIBRARY MAP
           </h1>
-          <p className="text-gray-500 font-medium mt-1">Visual physical inventory navigator</p>
+          <div className="flex items-center gap-3 mt-2">
+            <p className="text-gray-500 font-bold text-sm">Visual Shelf Navigator</p>
+            <div className="h-1 w-1 bg-gray-300 rounded-full" />
+            <button 
+              onClick={() => setShowSettings(!showSettings)}
+              className="flex items-center gap-2 text-indigo-600 font-bold text-xs hover:bg-indigo-50 px-3 py-1 rounded-full transition-colors"
+            >
+              <Settings size={14} /> Map Settings
+            </button>
+          </div>
         </div>
 
-        <form onSubmit={handleSearch} className="relative group">
+        <form onSubmit={handleSearch} className="relative group w-full md:w-auto">
           <input 
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search book title or barcode..."
-            className="w-full md:w-80 pl-12 pr-4 py-4 bg-white border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-sm shadow-sm group-hover:border-indigo-100 focus:border-indigo-400"
+            placeholder="Find book by title or barcode..."
+            className="w-full md:w-96 pl-14 pr-6 py-5 bg-white border-2 border-gray-100 rounded-3xl focus:ring-8 focus:ring-indigo-50 outline-none transition-all font-bold text-base shadow-xl shadow-gray-100 group-hover:border-indigo-100 focus:border-indigo-400"
           />
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-indigo-500 transition-colors" size={20} />
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-indigo-500 transition-colors" size={24} />
         </form>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-white border-2 border-indigo-100 rounded-[32px] p-8 shadow-2xl shadow-indigo-100/50 mb-8">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-xl font-black tracking-tight flex items-center gap-3">
+                  <LayoutIcon className="text-indigo-600" /> CUSTOMIZE LAYOUT
+                </h2>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowSettings(false)} className="px-6 py-3 bg-gray-50 text-gray-500 rounded-2xl font-bold text-sm hover:bg-gray-100">Cancel</button>
+                  <button onClick={handleSaveConfig} className="px-8 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-xl shadow-indigo-200 hover:bg-indigo-700">Save Map</button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+                <div className="space-y-4">
+                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Racks / Rows</label>
+                  <div className="flex flex-wrap gap-2">
+                    {pendingConfig.racks.map((rack, i) => (
+                      <div key={i} className="flex items-center gap-1 bg-gray-50 border border-gray-100 pl-3 pr-1 py-1 rounded-xl">
+                        <span className="font-bold text-sm">{rack}</span>
+                        <button 
+                          onClick={() => setPendingConfig({ ...pendingConfig, racks: pendingConfig.racks.filter((_, idx) => idx !== i) })}
+                          className="p-1 text-gray-400 hover:text-red-500"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))}
+                    <button 
+                      onClick={() => {
+                        const next = String.fromCharCode(65 + pendingConfig.racks.length);
+                        setPendingConfig({ ...pendingConfig, racks: [...pendingConfig.racks, next] });
+                      }}
+                      className="p-2 border-2 border-dashed border-gray-100 rounded-xl text-gray-400 hover:border-indigo-300 hover:text-indigo-500 transition-colors"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Slots per Rack</label>
+                  <div className="flex items-center gap-4">
+                    <input 
+                      type="range" min="5" max="25" 
+                      value={pendingConfig.slots_per_rack} 
+                      onChange={e => setPendingConfig({ ...pendingConfig, slots_per_rack: parseInt(e.target.value) })}
+                      className="flex-1 accent-indigo-600"
+                    />
+                    <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center font-black text-indigo-600">
+                      {pendingConfig.slots_per_rack}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Visual Layout</label>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setPendingConfig({ ...pendingConfig, layout: 'grid' })}
+                      className={`flex-1 py-4 border-2 rounded-2xl font-bold text-sm flex flex-col items-center gap-2 ${pendingConfig.layout === 'grid' ? 'border-indigo-500 bg-indigo-50 text-indigo-600' : 'border-gray-50 text-gray-400'}`}
+                    >
+                      <LayoutIcon size={20} /> Standard Grid
+                    </button>
+                    <button 
+                      onClick={() => setPendingConfig({ ...pendingConfig, layout: 'aisle' })}
+                      className={`flex-1 py-4 border-2 rounded-2xl font-bold text-sm flex flex-col items-center gap-2 ${pendingConfig.layout === 'aisle' ? 'border-indigo-500 bg-indigo-50 text-indigo-600' : 'border-gray-50 text-gray-400'}`}
+                    >
+                      <Columns size={20} /> Book Aisle
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-10 items-start">
         {/* Visual Grid */}
-        <div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-sm border border-gray-100 overflow-x-auto">
-          <div className="min-w-[600px]">
+        <div className="lg:col-span-3 bg-white rounded-[40px] p-10 shadow-2xl shadow-gray-200/50 border border-gray-50 overflow-x-auto min-h-[600px] flex flex-col">
+          <div className="min-w-fit mx-auto px-10">
             {/* Column Labels */}
-            <div className="flex mb-4">
-              <div className="w-12" /> {/* Space for row labels */}
+            <div className="flex mb-8">
+              <div className="w-16" /> {/* Space for row labels */}
               {SLOTS.map(s => (
-                <div key={s} className="flex-1 text-center text-[10px] font-black text-gray-300 uppercase tracking-widest">
+                <div key={s} className="flex-1 min-w-[50px] text-center text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">
                   {s.toString().padStart(2, '0')}
                 </div>
               ))}
             </div>
 
-            {/* Grid Rows */}
-            <div className="space-y-4">
-              {RACKS.map(rack => (
-                <div key={rack} className="flex items-center gap-4">
-                  <div className="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-xl text-lg font-black text-gray-400">
+            {/* Grid Rows - Layout Aware */}
+            <div className={`space-y-6 ${config.layout === 'aisle' ? 'p-8 bg-gray-50 rounded-[32px] border-4 border-white shadow-inner' : ''}`}>
+              {config.racks.map((rack, rackIdx) => (
+                <div key={rack} className="flex items-center gap-6 group">
+                  <div className="w-14 h-14 shrink-0 flex items-center justify-center bg-gray-50 rounded-2xl text-xl font-black text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all border border-transparent group-hover:border-indigo-100">
                     {rack}
                   </div>
-                  <div className="flex-1 flex gap-2">
+                  <div className="flex-1 flex gap-3">
                     {SLOTS.map(slot => {
                       const code = `${rack}-${slot.toString().padStart(2, '0')}`;
-                      const isOccupied = !!locationMap[code];
+                      const book = locationMap[code];
+                      const isOccupied = !!book;
                       const isSelected = selectedCell === code;
                       const isHighlighted = highlightedCell === code;
 
                       return (
                         <motion.button
                           key={code}
-                          whileHover={{ scale: 1.1, y: -2 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleCellClick(code)}
+                          whileHover={{ scale: 1.2, zIndex: 30, y: -4 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => {
+                            setSelectedCell(code);
+                            setHighlightedCell(null);
+                          }}
                           className={`
-                            flex-1 aspect-square rounded-xl border-2 transition-all flex items-center justify-center relative
-                            ${isOccupied ? 'bg-red-50 border-red-200 text-red-500' : 'bg-emerald-50 border-emerald-100 text-emerald-500 hover:border-emerald-300'}
-                            ${isSelected ? 'ring-4 ring-indigo-500/20 border-indigo-500 !bg-indigo-50 !text-indigo-600 scale-105 z-10' : ''}
-                            ${isHighlighted ? 'animate-pulse ring-4 ring-yellow-400 border-yellow-500 scale-110 z-20' : ''}
+                            w-12 h-12 rounded-xl border-2 transition-all flex items-center justify-center shrink-0 relative
+                            ${isOccupied ? 'bg-red-50 border-red-200 shadow-sm' : 'bg-emerald-50 border-emerald-100 hover:border-emerald-300'}
+                            ${isSelected ? 'ring-8 ring-indigo-500/20 border-indigo-600 !bg-indigo-600 !text-white z-20 scale-125' : ''}
+                            ${isHighlighted ? 'animate-pulse ring-8 ring-yellow-400 border-yellow-500 scale-150 z-30' : ''}
                           `}
                         >
-                          {isOccupied ? <div className="w-2 h-2 rounded-full bg-red-400" /> : <div className="w-1.5 h-1.5 rounded-full bg-emerald-300 opacity-50" />}
+                          {isOccupied && !isSelected && (
+                            <motion.div 
+                              layoutId={`indicator-${code}`}
+                              className="w-2.5 h-2.5 rounded-full bg-red-400 border-2 border-white" 
+                            />
+                          )}
+                          {!isOccupied && !isSelected && (
+                            <div className="w-2 h-2 rounded-full bg-emerald-200 group-hover:bg-emerald-400 transition-colors" />
+                          )}
                         </motion.button>
                       );
                     })}
                   </div>
+                  {/* End label for symmetry in aisle layout */}
+                  {config.layout === 'aisle' && (
+                    <div className="w-14 h-14 flex items-center justify-center text-xs font-black text-gray-200">
+                      RACK {rackIdx + 1}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
 
             {/* Legend */}
-            <div className="flex gap-6 mt-12 pt-8 border-t border-gray-50">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-emerald-50 border-2 border-emerald-100 rounded-md" />
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Empty Spot</span>
+            <div className="flex flex-wrap gap-8 mt-16 pt-10 border-t-2 border-gray-50">
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 bg-emerald-50 border-2 border-emerald-100 rounded-lg" />
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Available Spot</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-red-50 border-2 border-red-200 rounded-md flex items-center justify-center">
-                  <div className="w-1.5 h-1.5 bg-red-400 rounded-full" />
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 bg-red-50 border-2 border-red-200 rounded-lg flex items-center justify-center">
+                  <div className="w-2 h-2 bg-red-400 rounded-full" />
                 </div>
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Occupied</span>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Occupied Spot</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-indigo-50 border-2 border-indigo-500 rounded-md" />
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Selected</span>
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 bg-indigo-600 border-2 border-indigo-700 rounded-lg" />
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Selected Spot</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 ring-4 ring-yellow-400 border-2 border-yellow-500 rounded-lg animate-pulse" />
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Search Highlight</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Details Panel */}
-        <div className="space-y-6">
+        <div className="space-y-8 sticky top-6">
           <AnimatePresence mode="wait">
             {selectedCell ? (
               <motion.div
                 key={selectedCell}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -30 }}
+                className="bg-white rounded-[40px] p-10 shadow-2xl shadow-indigo-100/50 border border-white"
               >
-                <div className="flex items-center justify-between mb-6">
-                  <div className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-widest">
-                    LOCATION {selectedCell}
+                <div className="flex items-center justify-between mb-8">
+                  <div className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-2xl text-xs font-black uppercase tracking-widest">
+                    BIN {selectedCell}
                   </div>
-                  {bookAtSelected ? (
-                    <CheckCircle2 className="text-emerald-500" size={20} />
+                  {locationMap[selectedCell] ? (
+                    <div className="bg-emerald-50 text-emerald-600 p-3 rounded-2xl">
+                      <CheckCircle2 size={24} />
+                    </div>
                   ) : (
-                    <XCircle className="text-gray-300" size={20} />
+                    <div className="bg-gray-50 text-gray-300 p-3 rounded-2xl">
+                      <MousePointer2 size={24} />
+                    </div>
                   )}
                 </div>
 
-                {bookAtSelected ? (
-                  <div className="space-y-6">
+                {locationMap[selectedCell] ? (
+                  <div className="space-y-8">
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900 leading-tight">{bookAtSelected.title}</h3>
-                      <p className="text-gray-500 font-medium">{bookAtSelected.author}</p>
+                      <h3 className="text-2xl font-black text-gray-900 leading-tight tracking-tight">
+                        {locationMap[selectedCell].title}
+                      </h3>
+                      <p className="text-gray-500 font-bold mt-2 flex items-center gap-2">
+                        <span className="text-indigo-600">by</span> {locationMap[selectedCell].author}
+                      </p>
                     </div>
 
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
-                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Barcode</div>
-                        <div className="font-mono font-bold text-indigo-600">{bookAtSelected.barcode}</div>
+                    <div className="space-y-4">
+                      <div className="p-5 bg-gray-50 rounded-3xl border border-gray-100 group transition-all hover:bg-white hover:border-indigo-100 hover:shadow-lg hover:shadow-indigo-50">
+                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Catalog ID</div>
+                        <div className="font-mono font-bold text-gray-900 text-lg group-hover:text-indigo-600">
+                          {locationMap[selectedCell].barcode}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="pt-4 flex gap-3">
-                      <button className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-colors">
-                        View Full Details
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => (window as any).showBookDetails?.(locationMap[selectedCell].barcode)}
+                      className="w-full py-5 bg-indigo-600 text-white rounded-[24px] font-black text-sm shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-3"
+                    >
+                      <Info size={18} /> FULL CATALOG INFO
+                    </button>
+                    
+                    <button 
+                      onClick={() => {
+                        if (confirm(`Remove location assignment for this book?`)) {
+                          api.books.assignLocation(locationMap[selectedCell].barcode, '').then(() => fetchInitialData());
+                        }
+                      }}
+                      className="w-full py-4 text-red-400 font-bold text-xs hover:text-red-600 transition-colors uppercase tracking-widest"
+                    >
+                      Unassign this spot
+                    </button>
                   </div>
                 ) : (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
-                      <MousePointer2 size={32} />
+                  <div className="text-center py-20">
+                    <div className="w-24 h-24 bg-emerald-50 rounded-[32px] flex items-center justify-center mx-auto mb-6 text-emerald-400 rotate-3">
+                      <Plus size={48} />
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900">Slot Available</h3>
-                    <p className="text-gray-500 text-sm mt-1 px-4">This position is currently empty and can be assigned to a new book.</p>
+                    <h3 className="text-xl font-black text-gray-900">EMPTY SLOT</h3>
+                    <p className="text-gray-500 text-sm mt-3 px-6 font-medium leading-relaxed italic">
+                      "A room without books is like a body without a soul."
+                      <br/><span className="text-[10px] not-italic mt-2 block font-black text-gray-300">Assign a book to this shelf position.</span>
+                    </p>
                   </div>
                 )}
               </motion.div>
             ) : (
-              <div className="bg-indigo-600 rounded-3xl p-8 text-white shadow-xl shadow-indigo-100">
-                <Info size={32} className="mb-4 opacity-50" />
-                <h3 className="text-xl font-bold mb-2">How it works</h3>
-                <ul className="space-y-4 opacity-90 text-sm">
-                  <li className="flex gap-3">
-                    <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black italic">1</div>
-                    Each box represents a physical book position in the library racks.
-                  </li>
-                  <li className="flex gap-3">
-                    <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black italic">2</div>
-                    Click on any cell to view book details or manage assignment.
-                  </li>
-                  <li className="flex gap-3">
-                    <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black italic">3</div>
-                    Search for a book by title or barcode to highlight its shelf position.
-                  </li>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-indigo-600 rounded-[40px] p-10 text-white shadow-2xl shadow-indigo-200"
+              >
+                <div className="relative mb-10">
+                  <div className="absolute -top-4 -left-4 w-12 h-12 bg-white/10 rounded-2xl blur-xl" />
+                  <MapIcon size={48} className="relative z-10" />
+                </div>
+                <h3 className="text-2xl font-black mb-6 tracking-tight">KTS Physical Shelf Mapper</h3>
+                <ul className="space-y-6">
+                  {[
+                    "Each box represents a single book slot on your library's shelves.",
+                    "Labels correspond to Rack (A-Z) and Shelf position (01-50).",
+                    "Click a spot to assign, view, or manage specific book placements."
+                  ].map((tip, i) => (
+                    <li key={i} className="flex gap-4">
+                      <div className="w-6 h-6 bg-white/20 rounded-lg flex items-center justify-center shrink-0 text-[10px] font-black italic">
+                        0{i+1}
+                      </div>
+                      <p className="text-white/80 text-sm font-medium leading-relaxed">{tip}</p>
+                    </li>
+                  ))}
                 </ul>
-              </div>
+                <div className="mt-12 pt-8 border-t border-white/10">
+                   <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">KTS Library Management v2.0</p>
+                </div>
+              </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Quick Stats */}
-          <div className="bg-gray-900 rounded-3xl p-6 text-white overflow-hidden relative">
+          {/* Real-time Occupancy Stats */}
+          <div className="bg-gray-900 rounded-[40px] p-10 text-white overflow-hidden relative group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/20 blur-3xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000" />
             <div className="relative z-10">
-              <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Capacity Status</div>
-              <div className="flex items-end justify-between gap-4">
+              <div className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-6">Real-time Occupancy</div>
+              <div className="space-y-6">
                 <div>
-                  <div className="text-3xl font-black">{Math.round((Object.keys(locationMap).length / (RACKS.length * SLOTS.length)) * 100)}%</div>
-                  <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Racks Occupied</div>
+                  <div className="flex items-end justify-between mb-3">
+                    <div className="text-5xl font-black tracking-tighter">
+                      {Math.round((Object.keys(locationMap).length / (config.racks.length * config.slots_per_rack)) * 100)}%
+                    </div>
+                    <div className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-1.5">Full</div>
+                  </div>
+                  <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                    <motion.div 
+                      layout
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(Object.keys(locationMap).length / (config.racks.length * config.slots_per_rack)) * 100}%` }}
+                      className="h-full bg-indigo-500"
+                    />
+                  </div>
                 </div>
-                <div className="flex-1 h-3 bg-white/10 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(Object.keys(locationMap).length / (RACKS.length * SLOTS.length)) * 100}%` }}
-                    className="h-full bg-emerald-500"
-                  />
+                <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                  <span>{Object.keys(locationMap).length} Occupied</span>
+                  <span>{(config.racks.length * config.slots_per_rack) - Object.keys(locationMap).length} Empty</span>
                 </div>
               </div>
             </div>

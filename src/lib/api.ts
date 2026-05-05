@@ -61,10 +61,15 @@ export const api = {
     search: (q: string) => apiFetch(`/api/books/search?q=${encodeURIComponent(q)}`),
     create: (data: any) => apiFetch('/api/books', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => apiFetch(`/api/books/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) => apiFetch(`/api/books/${id}`, { method: 'DELETE' }),
     getDetail: (id: string) => apiFetch(`/api/books/${id}`),
     getLocations: () => apiFetch('/api/books/locations'),
     assignLocation: (barcode: string, location_code: string) => apiFetch('/api/books/assign-location', { method: 'POST', body: JSON.stringify({ barcode, location_code }) }),
     lookup: (code: string) => apiFetch(`/api/books/lookup/${code}`),
+  },
+  settings: {
+    getMap: () => apiFetch('/api/settings'),
+    saveMap: (config: any) => apiFetch('/api/settings', { method: 'POST', body: JSON.stringify(config) }),
   },
   transactions: {
     issue: (data: { barcode: string; studentQR: string }) => apiFetch('/api/transactions/issue', { method: 'POST', body: JSON.stringify(data) }),

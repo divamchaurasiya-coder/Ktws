@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent, useRef } from 'react';
 import { api } from '../lib/api';
-import { BookOpen, Plus, X, Search, Barcode as BarcodeIcon, History, User, Calendar, CheckCircle2, Clock, Scan, FileDown, FileUp } from 'lucide-react';
+import { BookOpen, Plus, X, Search, Barcode as BarcodeIcon, History, User, Calendar, CheckCircle2, Clock, Scan, FileDown, FileUp, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { format } from 'date-fns';
 import Barcode from 'react-barcode';
@@ -46,6 +46,13 @@ export default function BooksView() {
 
   useEffect(() => {
     fetchBooks();
+    
+    // Global hooks for communication between views
+    (window as any).showBookDetails = (barcode: string) => {
+      setSearch(barcode);
+      // We don't automatically open it because handleBookClick needs the book object from the list
+      // But we can filter the list and if only one result, we could open it
+    };
   }, []);
 
   const fetchBooks = async () => {
@@ -237,6 +244,23 @@ export default function BooksView() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!selectedBook) return;
+    if (!window.confirm(`Are you absolutely sure you want to delete "${selectedBook.title}"? This will remove all copies and circulation history.`)) return;
+    
+    setDetailLoading(true);
+    try {
+      await api.books.delete(selectedBook.id);
+      await fetchBooks();
+      setSelectedBook(null);
+      setIsEditing(false);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setDetailLoading(true);
+    }
+  };
+
   const handleSmartScan = async (barcode: string) => {
     setSmartScanLoading(true);
     setManualMode(false);
@@ -345,6 +369,12 @@ export default function BooksView() {
     b.author.toLowerCase().includes(search.toLowerCase()) ||
     b.barcode.toLowerCase().includes(search.toLowerCase())
   );
+
+  useEffect(() => {
+    if (search && filtered.length === 1 && !selectedBook) {
+      handleBookClick(filtered[0]);
+    }
+  }, [search, filtered.length]);
 
   return (
     <div className="space-y-6 pt-4">
@@ -583,6 +613,12 @@ export default function BooksView() {
                       className="py-5 bg-gray-900 text-white font-black uppercase tracking-widest rounded-2xl active:scale-95 transition-all shadow-lg shadow-gray-200 text-[10px]"
                     >
                       Edit Status
+                    </button>
+                    <button 
+                      onClick={handleDelete}
+                      className="col-span-2 py-4 bg-red-50 text-red-600 font-black uppercase tracking-widest rounded-2xl active:scale-95 transition-all border border-red-100 text-[10px] flex items-center justify-center gap-2"
+                    >
+                      <Trash2 size={14} /> Remove Book from Catalog
                     </button>
                   </div>
                 </>

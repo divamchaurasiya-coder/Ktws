@@ -43,6 +43,7 @@ CREATE TABLE public.books (
   title TEXT NOT NULL,
   author TEXT NOT NULL,
   barcode TEXT UNIQUE NOT NULL,
+  location_code TEXT, -- Added for virtual map positioning
   total_copies INTEGER DEFAULT 1,
   available_copies INTEGER DEFAULT 1,
   
@@ -66,6 +67,9 @@ CREATE TABLE public.books (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Index for map performance
+CREATE INDEX idx_books_location_code ON public.books(location_code);
 ```
 
 ## 4. Transactions
@@ -80,8 +84,30 @@ CREATE TABLE public.transactions (
   due_date TIMESTAMPTZ NOT NULL,
   return_date TIMESTAMPTZ,
   status TEXT DEFAULT 'issued', -- issued, returned, overdue
+  fine_amount NUMERIC DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+```
+
+## 5. Library Settings
+Stores configuration like map layout.
+
+```sql
+CREATE TABLE public.library_settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+---
+
+### Migration Helper (If you see "location_code missing" error)
+Run these queries in your Supabase SQL Editor:
+```sql
+ALTER TABLE public.books ADD COLUMN IF NOT EXISTS location_code TEXT;
+CREATE TABLE IF NOT EXISTS public.library_settings (key TEXT PRIMARY KEY, value JSONB NOT NULL);
 ```
 
 ---

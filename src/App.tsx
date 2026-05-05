@@ -20,6 +20,18 @@ export default function App() {
   useEffect(() => {
     checkAuth();
     (window as any).setActiveTab = setActiveTab;
+    
+    // Bridge for cross-view navigation
+    const originalShowDetails = (window as any).showBookDetails;
+    (window as any).showBookDetails = (barcode: string) => {
+      setActiveTab('books');
+      // Wait for tab to switch before calling inner hook
+      setTimeout(() => {
+        if (typeof (window as any).showBookDetails === 'function' && (window as any).showBookDetails !== originalShowDetails) {
+           (window as any).showBookDetails(barcode);
+        }
+      }, 100);
+    };
   }, []);
 
   const checkAuth = async () => {

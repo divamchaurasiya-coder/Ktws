@@ -387,6 +387,16 @@ const initializeApp = () => {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  booksRouter.delete('/:id', authenticate, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Offline' });
+    try {
+      const { error } = await client.from('books').delete().eq('id', req.params.id);
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   booksRouter.get('/locations', authenticate, async (req, res) => {
     const client = getSupabase();
     if (!client) return res.json({});
@@ -768,6 +778,34 @@ const initializeApp = () => {
     }
   });
 
+  // --- SECTION: SETTINGS ---
+  const settingsRouter = Router();
+  settingsRouter.get('/', authenticate, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.json({ racks: ['A', 'B', 'C', 'D'], slots_per_rack: 10, layout: 'grid' });
+    try {
+      const { data, error } = await client.from('library_settings').select('*').eq('key', 'map_config').maybeSingle();
+      if (error || !data) {
+        return res.json({ racks: ['A', 'B', 'C', 'D'], slots_per_rack: 10, layout: 'grid' });
+      }
+      res.json(data.value);
+    } catch (e) {
+      res.json({ racks: ['A', 'B', 'C', 'D'], slots_per_rack: 10, layout: 'grid' });
+    }
+  });
+
+  settingsRouter.post('/', authenticate, checkAdmin, async (req, res) => {
+    const client = getSupabase();
+    if (!client) return res.status(503).json({ error: 'Offline' });
+    try {
+      const { error } = await client.from('library_settings').upsert({ key: 'map_config', value: req.body });
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Resources
   rootRouter.use('/auth', authRouter);
   rootRouter.use('/dashboard', dashboardRouter);
@@ -775,6 +813,7 @@ const initializeApp = () => {
   rootRouter.use('/teachers', teachersRouter);
   rootRouter.use('/books', booksRouter);
   rootRouter.use('/transactions', transRouter);
+  rootRouter.use('/settings', settingsRouter);
   
   app.use('/api', rootRouter);
   app.use('/', rootRouter);
