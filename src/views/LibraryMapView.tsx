@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
-import { Search, Map as MapIcon, Info, CheckCircle2, XCircle, MousePointer2, Settings, Plus, Trash2, Save, MoreVertical, LayoutIcon, Columns } from 'lucide-react';
+import { Search, Map as MapIcon, Info, CheckCircle2, XCircle, MousePointer2, Settings, Plus, Trash2, Save, MoreVertical, LayoutIcon, Columns, ArrowUp, ArrowDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface MapConfig {
@@ -21,9 +21,9 @@ export default function LibraryMapView() {
   const [dbError, setDbError] = useState<string | null>(null);
 
   const [config, setConfig] = useState<MapConfig>({
-    racks: ['A', 'B', 'C', 'D'],
+    racks: ['K', 'J', 'I', 'H', 'G', 'F', 'E', 'D', 'C', 'B', 'A'],
     slots_per_rack: 10,
-    layout: 'grid'
+    layout: 'aisle'
   });
 
   const [pendingConfig, setPendingConfig] = useState<MapConfig>(config);
@@ -166,6 +166,72 @@ export default function LibraryMapView() {
   }
 
   const SLOTS = Array.from({ length: config.slots_per_rack }, (_, i) => i + 1);
+
+  const renderRack = (rack: string) => {
+    if (!config.racks.includes(rack)) return null;
+
+    return (
+      <div key={rack} className={`
+        flex group
+        ${config.layout === 'aisle' ? 'flex-row items-center gap-4' : 'flex-row items-center gap-6'}
+      `}>
+        <div className={`
+          flex-1 flex flex-wrap
+          ${config.layout === 'aisle' ? 'gap-1.5 justify-end' : 'gap-3 overflow-x-auto pb-2'}
+        `}>
+          {SLOTS.map(slot => {
+            const code = `${rack}-${slot.toString().padStart(2, '0')}`;
+            const book = locationMap[code];
+            const isOccupied = !!book;
+            const isSelected = selectedCell === code;
+            const isHighlighted = highlightedCell === code;
+
+            return (
+              <motion.button
+                key={code}
+                whileHover={{ scale: 1.2, zIndex: 30, y: -4 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => {
+                  setSelectedCell(code);
+                  setHighlightedCell(null);
+                }}
+                className={`
+                  rounded-lg border-2 transition-all flex items-center justify-center shrink-0 relative
+                  ${config.layout === 'aisle' ? 'w-10 h-12' : 'w-12 h-12'}
+                  ${isOccupied ? 'bg-red-50 border-red-200 shadow-sm' : 'bg-emerald-50 border-emerald-100 hover:border-emerald-300'}
+                  ${isSelected ? 'ring-8 ring-indigo-500/20 border-indigo-600 !bg-indigo-600 !text-white z-20 scale-125' : ''}
+                  ${isHighlighted ? 'animate-pulse ring-8 ring-yellow-400 border-yellow-500 scale-150 z-30' : ''}
+                `}
+              >
+                {isOccupied && !isSelected && (
+                  <motion.div 
+                    layoutId={`indicator-${code}`}
+                    className="w-2 h-2 rounded-full bg-red-400 border-2 border-white" 
+                  />
+                )}
+                {!isOccupied && !isSelected && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-200 group-hover:bg-emerald-400 transition-colors" />
+                )}
+                
+                {config.layout === 'aisle' && (
+                  <span className={`absolute -bottom-1 -right-1 text-[6px] font-black p-0.5 rounded ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                    {slot}
+                  </span>
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
+
+        <div className={`
+          shrink-0 flex items-center justify-center bg-gray-50 rounded-2xl text-xl font-black text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all border border-transparent group-hover:border-indigo-100
+          ${config.layout === 'aisle' ? 'w-10 h-10 text-sm' : 'w-14 h-14'}
+        `}>
+          {rack}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-20 px-4">
@@ -331,75 +397,42 @@ export default function LibraryMapView() {
             {/* Grid Rows - Layout Aware */}
             <div className={`
               ${config.layout === 'aisle' 
-                ? 'grid grid-cols-2 gap-x-24 gap-y-12 p-12 bg-gray-50 rounded-[48px] border-4 border-white shadow-inner relative' 
+                ? 'grid grid-cols-1 md:grid-cols-2 gap-x-12 lg:gap-x-24 gap-y-12 p-6 lg:p-12 bg-gray-50 rounded-[48px] border-4 border-white shadow-inner relative' 
                 : 'space-y-6'}
             `}>
               {config.layout === 'aisle' && (
                 <div className="absolute left-1/2 top-10 bottom-10 w-px bg-dashed bg-gray-200 -translate-x-1/2 hidden md:block" />
               )}
               
-              {config.racks.map((rack, rackIdx) => (
-                <div key={rack} className={`
-                  flex group
-                  ${config.layout === 'aisle' ? 'flex-col items-center gap-4' : 'flex-row items-center gap-6'}
-                `}>
-                  <div className={`
-                    shrink-0 flex items-center justify-center bg-gray-50 rounded-2xl text-xl font-black text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all border border-transparent group-hover:border-indigo-100
-                    ${config.layout === 'aisle' ? 'w-full py-2 text-sm' : 'w-14 h-14'}
-                  `}>
-                    RACK {rack}
+              {config.layout === 'aisle' ? (
+                <>
+                  {/* Left Column: K, J, I, H, G */}
+                  <div className="flex flex-col gap-10">
+                    <div className="flex justify-center mb-4">
+                       <div className="flex flex-col items-center text-indigo-400">
+                          <ArrowUp size={20} />
+                          <div className="h-12 w-[2px] bg-indigo-100 rounded-full my-1" />
+                          <ArrowDown size={20} />
+                       </div>
+                    </div>
+                    {['K', 'J', 'I', 'H', 'G'].map(r => renderRack(r))}
                   </div>
-                  
-                  <div className={`
-                    flex-1 flex flex-wrap
-                    ${config.layout === 'aisle' ? 'gap-2 justify-center' : 'gap-3 overflow-x-auto pb-2'}
-                  `}>
-                    {SLOTS.map(slot => {
-                      const code = `${rack}-${slot.toString().padStart(2, '0')}`;
-                      const book = locationMap[code];
-                      const isOccupied = !!book;
-                      const isSelected = selectedCell === code;
-                      const isHighlighted = highlightedCell === code;
 
-                      return (
-                        <motion.button
-                          key={code}
-                          whileHover={{ scale: 1.2, zIndex: 30, y: -4 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => {
-                            setSelectedCell(code);
-                            setHighlightedCell(null);
-                          }}
-                          className={`
-                            rounded-xl border-2 transition-all flex items-center justify-center shrink-0 relative
-                            ${config.layout === 'aisle' ? 'w-10 h-14' : 'w-12 h-12'}
-                            ${isOccupied ? 'bg-red-50 border-red-200 shadow-sm' : 'bg-emerald-50 border-emerald-100 hover:border-emerald-300'}
-                            ${isSelected ? 'ring-8 ring-indigo-500/20 border-indigo-600 !bg-indigo-600 !text-white z-20 scale-125' : ''}
-                            ${isHighlighted ? 'animate-pulse ring-8 ring-yellow-400 border-yellow-500 scale-150 z-30' : ''}
-                          `}
-                        >
-                          {isOccupied && !isSelected && (
-                            <motion.div 
-                              layoutId={`indicator-${code}`}
-                              className="w-2.5 h-2.5 rounded-full bg-red-400 border-2 border-white" 
-                            />
-                          )}
-                          {!isOccupied && !isSelected && (
-                            <div className="w-2 h-2 rounded-full bg-emerald-200 group-hover:bg-emerald-400 transition-colors" />
-                          )}
-                          
-                          {/* Small slot number indicator in aisle view */}
-                          {config.layout === 'aisle' && (
-                            <span className={`absolute -bottom-1 -right-1 text-[8px] font-black p-0.5 rounded ${isSelected ? 'text-white' : 'text-gray-300'}`}>
-                              {slot}
-                            </span>
-                          )}
-                        </motion.button>
-                      );
-                    })}
+                  {/* Right Column: F, E, D, C, B, A */}
+                  <div className="flex flex-col gap-10">
+                    <div className="flex justify-center mb-4">
+                       <div className="flex flex-col items-center text-indigo-400">
+                          <ArrowUp size={20} />
+                          <div className="h-12 w-[2px] bg-indigo-100 rounded-full my-1" />
+                          <ArrowDown size={20} />
+                       </div>
+                    </div>
+                    {['F', 'E', 'D', 'C', 'B', 'A'].map(r => renderRack(r))}
                   </div>
-                </div>
-              ))}
+                </>
+              ) : (
+                config.racks.map((rack, rackIdx) => renderRack(rack))
+              )}
             </div>
 
             {/* Legend */}

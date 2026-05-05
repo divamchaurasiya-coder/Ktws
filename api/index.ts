@@ -836,15 +836,15 @@ const initializeApp = () => {
   const settingsRouter = Router();
   settingsRouter.get('/', authenticate, async (req, res) => {
     const client = getSupabase();
-    if (!client) return res.json({ racks: ['A', 'B', 'C', 'D'], slots_per_rack: 10, layout: 'grid' });
+    if (!client) return res.json({ racks: ['K', 'J', 'I', 'H', 'G', 'F', 'E', 'D', 'C', 'B', 'A'], slots_per_rack: 10, layout: 'aisle' });
     try {
       const { data, error } = await client.from('library_settings').select('*').eq('key', 'map_config').maybeSingle();
       if (error || !data) {
-        return res.json({ racks: ['A', 'B', 'C', 'D'], slots_per_rack: 10, layout: 'grid' });
+        return res.json({ racks: ['K', 'J', 'I', 'H', 'G', 'F', 'E', 'D', 'C', 'B', 'A'], slots_per_rack: 10, layout: 'aisle' });
       }
       res.json(data.value);
     } catch (e) {
-      res.json({ racks: ['A', 'B', 'C', 'D'], slots_per_rack: 10, layout: 'grid' });
+      res.json({ racks: ['K', 'J', 'I', 'H', 'G', 'F', 'E', 'D', 'C', 'B', 'A'], slots_per_rack: 10, layout: 'aisle' });
     }
   });
 
