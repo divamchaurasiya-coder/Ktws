@@ -128,10 +128,12 @@ const runOverdueSync = async () => {
   }
 };
 
-// Start periodic sync (every 6 hours)
-setInterval(runOverdueSync, 6 * 60 * 60 * 1000);
-// Run once on startup after a delay to ensure DB is up
-setTimeout(runOverdueSync, 30000);
+// Start periodic sync (only if not in a serverless environment like Vercel)
+// Vercel users should use Vercel Cron to trigger /api/transactions/sync-overdue
+if (process.env.VERCEL !== '1') {
+  setInterval(runOverdueSync, 6 * 60 * 60 * 1000);
+  setTimeout(runOverdueSync, 30000);
+}
 
 const initializeApp = () => {
   if (appInstance) return appInstance;
@@ -655,15 +657,35 @@ const initializeApp = () => {
   rootRouter.get('/health', async (req, res) => {
     const client = getSupabase();
     const twilioClient = getTwilio();
+    
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
     res.json({ 
       status: 'ok', 
       db: !!client, 
       twilio: !!twilioClient,
-      env: {
-        hasSupabaseUrl: !!(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL),
-        hasSupabaseKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY),
-        nodeEnv: process.env.NODE_ENV
+      diagnostics: {
+        hasUrl: !!url,
+        hasKey: !!key,
+        urlPreview: url ? `${url.substring(0, 10)}...` : 'missing',
+        nodeEnv: process.env.NODE_ENV,
+        isVercel: process.env.VERCEL === '1'
       }
+    });
+  });
+
+  rootRouter.get('/troubleshoot', (req, res) => {
+    res.json({
+      environment_summary: {
+        SUPABASE_URL: !!process.env.SUPABASE_URL || !!process.env.VITE_SUPABASE_URL,
+        SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY || !!process.env.VITE_SUPABASE_ANON_KEY,
+        TWILIO_ACCOUNT_SID: !!process.env.TWILIO_ACCOUNT_SID,
+        VERCEL: process.env.VERCEL,
+        NODE_ENV: process.env.NODE_ENV,
+        ENTRY_PATH: __dirname
+      },
+      message: "If any variables are 'false', ensure they are set in your Vercel Dashboard. After setting them, you MUST redeploy your application."
     });
   });
 
