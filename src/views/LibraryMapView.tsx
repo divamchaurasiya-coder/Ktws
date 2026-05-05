@@ -13,9 +13,11 @@ export default function LibraryMapView() {
   const [locationMap, setLocationMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
   const [highlightedCell, setHighlightedCell] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [assigningLoading, setAssigningLoading] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
 
   const [config, setConfig] = useState<MapConfig>({
@@ -70,25 +72,44 @@ export default function LibraryMapView() {
     }
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery) return;
+  const handleSearchInputChange = async (val: string) => {
+    setSearchQuery(val);
+    if (val.length < 2) {
+      setSearchResults([]);
+      return;
+    }
 
     try {
-      const results = await api.books.search(searchQuery);
-      if (results.length > 0) {
-        const book = results[0];
-        if (book.location_code) {
-          setHighlightedCell(book.location_code);
-          setSelectedCell(book.location_code);
-        } else {
-          alert(`Book "${book.title}" found but has no assigned location.`);
-        }
-      } else {
-        alert('No book found matching that physical identifier.');
-      }
+      const results = await api.books.search(val);
+      setSearchResults(results.slice(0, 5));
     } catch (err) {
-      console.error('Search failed', err);
+      console.error(err);
+    }
+  };
+
+  const handleSelectSearchResult = (book: any) => {
+    if (book.location_code) {
+      setHighlightedCell(book.location_code);
+      setSelectedCell(book.location_code);
+    } else {
+      alert(`Book "${book.title}" is in catalog but has no shelf assigned.`);
+    }
+    setSearchResults([]);
+    setSearchQuery(book.title);
+  };
+
+  const handleAssignBook = async (barcode: string) => {
+    if (!selectedCell) return;
+    setAssigningLoading(true);
+    try {
+      await api.books.assignLocation(barcode, selectedCell);
+      await fetchInitialData();
+      setSearchResults([]);
+      setSearchQuery('');
+    } catch (err: any) {
+      alert(err.message || 'Failed to assign');
+    } finally {
+      setAssigningLoading(false);
     }
   };
 
@@ -137,15 +158,42 @@ export default function LibraryMapView() {
           </div>
         </div>
 
-        <form onSubmit={handleSearch} className="relative group w-full md:w-auto">
+        <div className="relative group w-full md:w-auto">
           <input 
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={e => handleSearchInputChange(e.target.value)}
             placeholder="Find book by title or barcode..."
             className="w-full md:w-96 pl-14 pr-6 py-5 bg-white border-2 border-gray-100 rounded-3xl focus:ring-8 focus:ring-indigo-50 outline-none transition-all font-bold text-base shadow-xl shadow-gray-100 group-hover:border-indigo-100 focus:border-indigo-400"
           />
           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-indigo-500 transition-colors" size={24} />
-        </form>
+          
+          <AnimatePresence>
+            {searchResults.length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute top-full left-0 right-0 mt-3 bg-white rounded-3xl shadow-2xl border border-gray-100 z-[100] overflow-hidden"
+              >
+                {searchResults.map(book => (
+                  <button
+                    key={book.barcode}
+                    onClick={() => handleSelectSearchResult(book)}
+                    className="w-full p-4 flex items-center justify-between hover:bg-indigo-50 transition-colors text-left border-b border-gray-50 last:border-0"
+                  >
+                    <div>
+                      <div className="font-bold text-sm text-gray-900">{book.title}</div>
+                      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{book.author}</div>
+                    </div>
+                    {book.location_code && (
+                      <div className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black">{book.location_code}</div>
+                    )}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       <AnimatePresence>
@@ -234,26 +282,46 @@ export default function LibraryMapView() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-10 items-start">
         {/* Visual Grid */}
-        <div className="lg:col-span-3 bg-white rounded-[40px] p-10 shadow-2xl shadow-gray-200/50 border border-gray-50 overflow-x-auto min-h-[600px] flex flex-col">
-          <div className="min-w-fit mx-auto px-10">
+        <div className="lg:col-span-3 bg-white rounded-[40px] p-10 shadow-2xl shadow-gray-200/50 border border-gray-50 overflow-x-auto flex flex-col">
+          <div className="min-w-fit mx-auto px-4 w-full">
             {/* Column Labels */}
             <div className="flex mb-8">
               <div className="w-16" /> {/* Space for row labels */}
-              {SLOTS.map(s => (
-                <div key={s} className="flex-1 min-w-[50px] text-center text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">
-                  {s.toString().padStart(2, '0')}
-                </div>
-              ))}
+              <div className="flex-1 flex gap-3">
+                {SLOTS.map(s => (
+                  <div key={s} className={`shrink-0 text-center text-[10px] font-black text-gray-300 uppercase tracking-widest ${config.layout === 'aisle' ? 'w-full flex-1' : 'w-12'}`}>
+                    {s.toString().padStart(2, '0')}
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Grid Rows - Layout Aware */}
-            <div className={`space-y-6 ${config.layout === 'aisle' ? 'p-8 bg-gray-50 rounded-[32px] border-4 border-white shadow-inner' : ''}`}>
+            <div className={`
+              ${config.layout === 'aisle' 
+                ? 'grid grid-cols-2 gap-x-24 gap-y-12 p-12 bg-gray-50 rounded-[48px] border-4 border-white shadow-inner relative' 
+                : 'space-y-6'}
+            `}>
+              {config.layout === 'aisle' && (
+                <div className="absolute left-1/2 top-10 bottom-10 w-px bg-dashed bg-gray-200 -translate-x-1/2 hidden md:block" />
+              )}
+              
               {config.racks.map((rack, rackIdx) => (
-                <div key={rack} className="flex items-center gap-6 group">
-                  <div className="w-14 h-14 shrink-0 flex items-center justify-center bg-gray-50 rounded-2xl text-xl font-black text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all border border-transparent group-hover:border-indigo-100">
-                    {rack}
+                <div key={rack} className={`
+                  flex group
+                  ${config.layout === 'aisle' ? 'flex-col items-center gap-4' : 'flex-row items-center gap-6'}
+                `}>
+                  <div className={`
+                    shrink-0 flex items-center justify-center bg-gray-50 rounded-2xl text-xl font-black text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all border border-transparent group-hover:border-indigo-100
+                    ${config.layout === 'aisle' ? 'w-full py-2 text-sm' : 'w-14 h-14'}
+                  `}>
+                    RACK {rack}
                   </div>
-                  <div className="flex-1 flex gap-3">
+                  
+                  <div className={`
+                    flex-1 flex flex-wrap
+                    ${config.layout === 'aisle' ? 'gap-2 justify-center' : 'gap-3 overflow-x-auto pb-2'}
+                  `}>
                     {SLOTS.map(slot => {
                       const code = `${rack}-${slot.toString().padStart(2, '0')}`;
                       const book = locationMap[code];
@@ -271,7 +339,8 @@ export default function LibraryMapView() {
                             setHighlightedCell(null);
                           }}
                           className={`
-                            w-12 h-12 rounded-xl border-2 transition-all flex items-center justify-center shrink-0 relative
+                            rounded-xl border-2 transition-all flex items-center justify-center shrink-0 relative
+                            ${config.layout === 'aisle' ? 'w-10 h-14' : 'w-12 h-12'}
                             ${isOccupied ? 'bg-red-50 border-red-200 shadow-sm' : 'bg-emerald-50 border-emerald-100 hover:border-emerald-300'}
                             ${isSelected ? 'ring-8 ring-indigo-500/20 border-indigo-600 !bg-indigo-600 !text-white z-20 scale-125' : ''}
                             ${isHighlighted ? 'animate-pulse ring-8 ring-yellow-400 border-yellow-500 scale-150 z-30' : ''}
@@ -286,16 +355,17 @@ export default function LibraryMapView() {
                           {!isOccupied && !isSelected && (
                             <div className="w-2 h-2 rounded-full bg-emerald-200 group-hover:bg-emerald-400 transition-colors" />
                           )}
+                          
+                          {/* Small slot number indicator in aisle view */}
+                          {config.layout === 'aisle' && (
+                            <span className={`absolute -bottom-1 -right-1 text-[8px] font-black p-0.5 rounded ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                              {slot}
+                            </span>
+                          )}
                         </motion.button>
                       );
                     })}
                   </div>
-                  {/* End label for symmetry in aisle layout */}
-                  {config.layout === 'aisle' && (
-                    <div className="w-14 h-14 flex items-center justify-center text-xs font-black text-gray-200">
-                      RACK {rackIdx + 1}
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -389,15 +459,37 @@ export default function LibraryMapView() {
                     </button>
                   </div>
                 ) : (
-                  <div className="text-center py-20">
-                    <div className="w-24 h-24 bg-emerald-50 rounded-[32px] flex items-center justify-center mx-auto mb-6 text-emerald-400 rotate-3">
-                      <Plus size={48} />
+                  <div className="text-center py-12">
+                    <div className="w-20 h-20 bg-emerald-50 rounded-[32px] flex items-center justify-center mx-auto mb-6 text-emerald-400 rotate-3">
+                      <Plus size={32} />
                     </div>
                     <h3 className="text-xl font-black text-gray-900">EMPTY SLOT</h3>
-                    <p className="text-gray-500 text-sm mt-3 px-6 font-medium leading-relaxed italic">
-                      "A room without books is like a body without a soul."
-                      <br/><span className="text-[10px] not-italic mt-2 block font-black text-gray-300">Assign a book to this shelf position.</span>
-                    </p>
+                    <p className="text-gray-400 text-[10px] font-black uppercase mt-2">Ready for Assignment</p>
+
+                    <div className="mt-8 space-y-4">
+                      <div className="relative">
+                        <input 
+                          placeholder="Search book to assign..."
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                          onChange={(e) => handleSearchInputChange(e.target.value)}
+                        />
+                        {searchResults.length > 0 && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-indigo-100 rounded-2xl shadow-xl z-50 max-h-48 overflow-y-auto">
+                            {searchResults.map(b => (
+                              <button 
+                                key={b.barcode} 
+                                onClick={() => handleAssignBook(b.barcode)}
+                                disabled={assigningLoading}
+                                className="w-full p-3 text-left hover:bg-indigo-50 flex flex-col border-b border-gray-50"
+                              >
+                                <span className="font-bold text-xs">{b.title}</span>
+                                <span className="text-[10px] text-gray-400">{b.barcode}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </motion.div>

@@ -22,6 +22,7 @@ export async function generateBookReport(books: any[], stats: any) {
     { header: 'COST', key: 'cost', width: 10 },            // L
     { header: 'CLASS NO.', key: 'class_no', width: 12 },   // M
     { header: 'REMARKS', key: 'remarks', width: 15 },      // N
+    { header: 'LOCATION', key: 'location', width: 12 },    // O
   ];
 
   // --- HEADER SECTION ---
@@ -76,7 +77,7 @@ export async function generateBookReport(books: any[], stats: any) {
 
   // --- TABLE HEADER ---
   const headerRow = worksheet.getRow(11);
-  headerRow.values = ['SR.', 'DATE', 'ACC. NO.', 'AUTHOR', 'TITLE', 'EDITION', 'VOL.', 'PUBLISHER', 'YEAR', 'SOURCE', 'BILL NO', 'COST', 'CLASS NO.', 'REMARKS'];
+  headerRow.values = ['SR.', 'DATE', 'ACC. NO.', 'AUTHOR', 'TITLE', 'EDITION', 'VOL.', 'PUBLISHER', 'YEAR', 'SOURCE', 'BILL NO', 'COST', 'CLASS NO.', 'REMARKS', 'LOCATION'];
   headerRow.height = 35;
   headerRow.eachCell((cell) => {
     cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 10 };
@@ -101,7 +102,8 @@ export async function generateBookReport(books: any[], stats: any) {
       book.bill_no || '-',
       book.cost || '0.00',
       book.category || 'General',
-      book.available_copies > 0 ? 'Available' : 'Issued'
+      book.available_copies > 0 ? 'Available' : 'Issued',
+      book.location_code || '-'
     ]);
 
     row.height = 25;
