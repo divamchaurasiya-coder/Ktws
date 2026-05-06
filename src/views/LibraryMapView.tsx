@@ -189,32 +189,43 @@ export default function LibraryMapView() {
             return (
               <motion.button
                 key={code}
-                whileHover={{ scale: 1.2, zIndex: 30, y: -4 }}
-                whileTap={{ scale: 0.9 }}
+                whileHover={{ scale: 1.15, zIndex: 30, y: -4 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setSelectedCell(code);
                   setHighlightedCell(null);
                 }}
                 className={`
-                  rounded-xl border-2 transition-all flex items-center justify-center shrink-0 relative
+                  rounded-lg transition-all flex items-center justify-center shrink-0 relative overflow-hidden
                   ${config.layout === 'aisle' ? 'w-10 h-14' : 'w-12 h-12'}
-                  ${isOccupied ? 'bg-red-50 border-red-200 shadow-sm' : 'bg-emerald-50 border-emerald-100 hover:border-emerald-300'}
-                  ${isSelected ? 'ring-8 ring-indigo-500/20 border-indigo-600 !bg-indigo-600 !text-white z-20 scale-125' : ''}
-                  ${isHighlighted ? 'animate-pulse ring-8 ring-yellow-400 border-yellow-500 scale-150 z-30' : ''}
+                  ${isOccupied 
+                    ? 'bg-gradient-to-br from-red-50 to-red-100/50 border-2 border-red-200 shadow-sm' 
+                    : 'bg-gradient-to-br from-emerald-50 to-white border-2 border-emerald-100 hover:border-emerald-300 shadow-inner'
+                  }
+                  ${isSelected ? 'ring-8 ring-indigo-500/20 border-indigo-600 !bg-indigo-600 !text-white z-20 scale-125 shadow-2xl' : ''}
+                  ${isHighlighted ? 'animate-pulse ring-8 ring-yellow-400 border-yellow-500 scale-150 z-30 shadow-2xl shadow-yellow-200' : ''}
                 `}
               >
+                {/* Visual Depth Overlay */}
+                {!isSelected && (
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/[0.03] to-transparent pointer-events-none" />
+                )}
+
                 {isOccupied && !isSelected && (
                   <motion.div 
                     layoutId={`indicator-${code}`}
-                    className="w-2.5 h-2.5 rounded-full bg-red-400 border-2 border-white" 
-                  />
+                    className="w-3 h-5 rounded-sm bg-indigo-400 border-[1.5px] border-white shadow-sm flex flex-col justify-between p-[2px]"
+                  >
+                    <div className="h-0.5 w-full bg-white/40 rounded-full" />
+                    <div className="h-0.5 w-full bg-white/40 rounded-full" />
+                  </motion.div>
                 )}
                 {!isOccupied && !isSelected && (
-                  <div className="w-2 h-2 rounded-full bg-emerald-200 group-hover:bg-emerald-400 transition-colors" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-200 group-hover:bg-emerald-400 transition-colors shadow-inner" />
                 )}
                 
                 {config.layout === 'aisle' && (
-                  <span className={`absolute -bottom-1 -right-1 text-[8px] font-black p-0.5 rounded ${isSelected ? 'text-white' : 'text-gray-300 shadow-sm'}`}>
+                  <span className={`absolute bottom-0.5 right-0.5 text-[7px] font-black p-0.5 rounded leading-none ${isSelected ? 'text-white/50' : 'text-gray-300'}`}>
                     {slot}
                   </span>
                 )}
@@ -397,12 +408,19 @@ export default function LibraryMapView() {
 
             {/* Grid Rows - Layout Aware */}
             <div className={`
+              relative
               ${config.layout === 'aisle' 
-                ? 'grid grid-cols-2 gap-x-12 lg:gap-x-24 gap-y-12 p-8 md:p-12 bg-gray-50 rounded-[48px] border-4 border-white shadow-inner relative' 
+                ? 'grid grid-cols-2 gap-x-12 lg:gap-x-24 gap-y-12 p-8 md:p-12 bg-gray-50/50 rounded-[48px] border-4 border-white shadow-inner overflow-hidden' 
                 : 'space-y-6 md:space-y-8'}
             `}>
+              {/* Floor Plan Texture */}
               {config.layout === 'aisle' && (
-                <div className="absolute left-1/2 top-10 bottom-10 w-px bg-dashed bg-gray-200 -translate-x-1/2" />
+                <div className="absolute inset-0 pointer-events-none opacity-[0.03]" 
+                     style={{ backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+              )}
+
+              {config.layout === 'aisle' && (
+                <div className="absolute left-1/2 top-10 bottom-10 w-px bg-dash-pattern bg-gray-200 -translate-x-1/2" />
               )}
               
               {config.layout === 'aisle' ? (
@@ -460,27 +478,29 @@ export default function LibraryMapView() {
           </div>
         </div>
 
-        {/* Details Panel */}
+          {/* Details Panel */}
         <div className="space-y-8 sticky top-6">
           <AnimatePresence mode="wait">
             {selectedCell ? (
               <motion.div
                 key={selectedCell}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -30 }}
-                className="bg-white rounded-3xl md:rounded-[40px] p-6 md:p-10 shadow-2xl shadow-indigo-100/50 border border-white"
+                initial={{ opacity: 0, scale: 0.95, y: 30 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -30 }}
+                className="bg-white/80 backdrop-blur-xl rounded-3xl md:rounded-[40px] p-6 md:p-10 shadow-[0_32px_64px_-16px_rgba(79,70,229,0.15)] border border-white relative overflow-hidden"
               >
-                <div className="flex items-center justify-between mb-8">
-                  <div className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl -mr-16 -mt-16" />
+                
+                <div className="flex items-center justify-between mb-8 relative z-10">
+                  <div className="px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-200">
                     BIN {selectedCell}
                   </div>
                   {locationMap[selectedCell] ? (
-                    <div className="bg-emerald-50 text-emerald-600 p-2 md:p-3 rounded-xl md:rounded-2xl">
+                    <div className="bg-emerald-50 text-emerald-600 p-2 md:p-3 rounded-xl md:rounded-2xl border border-emerald-100">
                       <CheckCircle2 size={18} className="md:w-6 md:h-6" />
                     </div>
                   ) : (
-                    <div className="bg-gray-50 text-gray-300 p-2 md:p-3 rounded-xl md:rounded-2xl">
+                    <div className="bg-gray-50 text-gray-400 p-2 md:p-3 rounded-xl md:rounded-2xl border border-gray-100">
                       <MousePointer2 size={18} className="md:w-6 md:h-6" />
                     </div>
                   )}
@@ -605,30 +625,40 @@ export default function LibraryMapView() {
           </AnimatePresence>
 
           {/* Real-time Occupancy Stats */}
-          <div className="bg-gray-900 rounded-3xl md:rounded-[40px] p-6 md:p-10 text-white overflow-hidden relative group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/20 blur-3xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000" />
+          <div className="bg-gray-900 rounded-3xl md:rounded-[40px] p-6 md:p-10 text-white overflow-hidden relative group border border-white/5">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/30 blur-[80px] -mr-24 -mt-24 group-hover:scale-150 transition-transform duration-1000" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/10 blur-[60px] -ml-16 -mb-16" />
+            
             <div className="relative z-10">
-              <div className="text-[8px] md:text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4 md:mb-6">Real-time Occupancy</div>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/10">
+                  <LayoutIcon size={14} className="text-indigo-400" />
+                </div>
+                <div className="text-[8px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Live Capacity</div>
+              </div>
+
               <div className="space-y-4 md:space-y-6">
                 <div>
                   <div className="flex items-end justify-between mb-2 md:mb-3">
-                    <div className="text-3xl md:text-5xl font-black tracking-tighter">
+                    <div className="text-4xl md:text-6xl font-black tracking-tighter bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">
                       {Math.round((Object.keys(locationMap).length / (config.racks.length * config.slots_per_rack)) * 100)}%
                     </div>
-                    <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1 md:mb-1.5">Full</div>
+                    <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1 md:mb-2 flex items-center gap-2">
+                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live
+                    </div>
                   </div>
-                  <div className="w-full h-3 md:h-4 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                  <div className="w-full h-3 md:h-4 bg-white/10 rounded-full overflow-hidden border border-white/5 p-1">
                     <motion.div 
                       layout
                       initial={{ width: 0 }}
                       animate={{ width: `${(Object.keys(locationMap).length / (config.racks.length * config.slots_per_rack)) * 100}%` }}
-                      className="h-full bg-indigo-500"
+                      className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-full shadow-[0_0_12px_rgba(99,102,241,0.5)]"
                     />
                   </div>
                 </div>
-                <div className="flex justify-between text-[8px] md:text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                  <span>{Object.keys(locationMap).length} Occupied</span>
-                  <span>{(config.racks.length * config.slots_per_rack) - Object.keys(locationMap).length} Empty</span>
+                <div className="flex justify-between text-[8px] md:text-[10px] font-black text-gray-500 uppercase tracking-widest pt-2 border-t border-white/5">
+                  <span className="text-white/60">{Object.keys(locationMap).length} <span className="text-gray-600">FULL</span></span>
+                  <span className="text-white/60">{(config.racks.length * config.slots_per_rack) - Object.keys(locationMap).length} <span className="text-gray-600">OPEN</span></span>
                 </div>
               </div>
             </div>

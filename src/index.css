@@ -25,7 +25,16 @@
   @apply text-sm leading-relaxed;
 }
 
-/* Fix for html5-qrcode layout */
+/* Custom Map Utilities */
+.bg-dash-pattern {
+  background-image: linear-gradient(to bottom, #E5E7EB 50%, transparent 50%);
+  background-size: 2px 10px;
+}
+
+.map-card-glow {
+  box-shadow: 0 0 40px -10px rgba(79, 70, 229, 0.2);
+}
+
 #qr-video-container {
   border: none !important;
   background: black !important;
