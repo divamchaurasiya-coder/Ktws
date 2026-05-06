@@ -330,14 +330,14 @@ export default function LibraryMapView() {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="bg-white border-2 border-indigo-100 rounded-[32px] p-8 shadow-2xl shadow-indigo-100/50 mb-8">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-xl font-black tracking-tight flex items-center gap-3">
+            <div className="bg-white border-2 border-indigo-100 rounded-[32px] p-5 md:p-8 shadow-2xl shadow-indigo-100/50 mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                <h2 className="text-lg md:text-xl font-black tracking-tight flex items-center gap-3">
                   <LayoutIcon className="text-indigo-600" /> CUSTOMIZE LAYOUT
                 </h2>
-                <div className="flex gap-2">
-                  <button onClick={() => setShowSettings(false)} className="px-6 py-3 bg-gray-50 text-gray-500 rounded-2xl font-bold text-sm hover:bg-gray-100">Cancel</button>
-                  <button onClick={handleSaveConfig} className="px-8 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-xl shadow-indigo-200 hover:bg-indigo-700">Save Map</button>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button onClick={() => setShowSettings(false)} className="flex-1 sm:flex-none px-4 md:px-6 py-3 bg-gray-50 text-gray-500 rounded-2xl font-bold text-xs md:text-sm hover:bg-gray-100">Cancel</button>
+                  <button onClick={handleSaveConfig} className="flex-1 sm:flex-none px-6 md:px-8 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-xs md:text-sm shadow-xl shadow-indigo-200 hover:bg-indigo-700">Save Map</button>
                 </div>
               </div>
 
