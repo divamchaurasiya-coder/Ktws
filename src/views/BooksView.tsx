@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent, useRef } from 'react';
 import { api } from '../lib/api';
-import { BookOpen, Plus, X, Search, Barcode as BarcodeIcon, History, User, Calendar, CheckCircle2, Clock, Scan, FileDown, FileUp, Trash2 } from 'lucide-react';
+import { BookOpen, Map as MapIcon, Plus, X, Search, Barcode as BarcodeIcon, History, User, Calendar, CheckCircle2, Clock, Scan, FileDown, FileUp, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { format } from 'date-fns';
 import Barcode from 'react-barcode';
@@ -465,6 +465,11 @@ export default function BooksView() {
                   <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${book.available_copies > 0 ? 'bg-[#DCFCE7] text-[#10B981]' : 'bg-[#FEE2E2] text-[#EF4444]'}`}>
                     {book.available_copies} / {book.total_copies} AVBL
                   </div>
+                  {book.location_code && (
+                    <div className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 border border-indigo-100">
+                      <MapIcon size={10} /> {book.location_code}
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -500,6 +505,21 @@ export default function BooksView() {
                       <p className="text-xs text-gray-400 font-black uppercase tracking-[0.3em]">{selectedBook.author}</p>
                     </div>
                   </div>
+
+                  {selectedBook.location_code && (
+                    <div className="mb-8 p-6 bg-indigo-600 rounded-[32px] text-white shadow-xl shadow-indigo-200 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000" />
+                      <div className="relative z-10 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-black text-indigo-100 uppercase tracking-[0.2em] mb-1">SHELF LOCATION</p>
+                          <p className="text-3xl font-black tracking-tighter">BIN {selectedBook.location_code}</p>
+                        </div>
+                        <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/20">
+                          <MapIcon size={28} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-2 gap-4 w-full mb-8">
                     <div className="bg-gray-50 p-5 rounded-[32px] border border-gray-100/50 flex flex-col items-center text-center relative group">
