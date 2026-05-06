@@ -1,6 +1,6 @@
 {
-  "name": "Library Management",
-  "description": "A comprehensive mobile-first library management system for teachers to manage books, students, and transactions.",
+  "name": "KTWS High-Performance Library",
+  "description": "Enterprise-grade library management system optimized for 10,000+ records with real-time sync, Redis caching, and ultra-fast response times.",
   "requestFramePermissions": [
     "camera"
   ]

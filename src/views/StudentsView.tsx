@@ -9,9 +9,13 @@ import { format } from 'date-fns';
 export default function StudentsView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [students, setStudents] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -22,17 +26,52 @@ export default function StudentsView() {
   const [formLoading, setFormLoading] = useState(false);
 
   useEffect(() => {
-    fetchStudents();
-  }, []);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const fetchStudents = async () => {
+  useEffect(() => {
+    setPage(1);
+    fetchStudents(1, true);
+  }, [debouncedSearch]);
+
+  const fetchStudents = async (pageNum = 1, reset = false) => {
     try {
-      const data = await api.students.list();
-      setStudents(data);
+      if (pageNum === 1) setLoading(true);
+      else setLoadingMore(true);
+
+      let data;
+      if (debouncedSearch) {
+        data = await api.students.search(debouncedSearch);
+        setStudents(data);
+        setHasMore(false);
+      } else {
+        const response = await api.students.list(pageNum, 20);
+        const { data: newStudents, total } = response;
+        
+        if (reset) {
+          setStudents(newStudents);
+        } else {
+          setStudents(prev => [...prev, ...newStudents]);
+        }
+        
+        setHasMore(students.length + newStudents.length < total);
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchStudents(nextPage);
     }
   };
 
@@ -177,26 +216,50 @@ export default function StudentsView() {
 
       <div className="space-y-3">
         {loading ? (
-          <div className="py-10 text-center animate-pulse text-[#94A3B8] text-xs">Loading students...</div>
-        ) : filtered.length > 0 ? (
-          filtered.map(student => (
-            <div 
-              key={student.id} 
-              onClick={() => handleStudentClick(student)}
-              className="bg-white p-4 rounded-2xl border border-[#F1F5F9] shadow-xs flex items-center gap-4 active:bg-gray-50 transition-colors cursor-pointer"
-            >
-              <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-[#4F46E5] font-bold text-sm">
-                {student.name.charAt(0)}
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-[#1A1A1A]">{student.name}</p>
-                <p className="text-[11px] text-[#64748B] font-medium uppercase tracking-tight">Class {student.class}-{student.section} • ID: {student.qr_code}</p>
-              </div>
-              <div className="p-2 bg-[#F8FAFC] rounded-lg">
-                <QrCode size={18} className="text-[#4F46E5]" />
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="bg-white p-4 rounded-2xl border border-[#F1F5F9] shadow-xs flex items-center gap-4 animate-pulse">
+              <div className="w-12 h-12 bg-gray-100 rounded-xl" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-gray-100 rounded w-1/2" />
+                <div className="h-3 bg-gray-50 rounded w-3/4" />
               </div>
             </div>
           ))
+        ) : students.length > 0 ? (
+          <>
+            {students.map(student => (
+              <div 
+                key={student.id} 
+                onClick={() => handleStudentClick(student)}
+                className="bg-white p-4 rounded-2xl border border-[#F1F5F9] shadow-xs flex items-center gap-4 active:bg-gray-50 transition-colors cursor-pointer group"
+              >
+                <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-[#4F46E5] font-bold text-sm group-hover:scale-105 transition-transform">
+                  {student.name.charAt(0)}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-[#1A1A1A]">{student.name}</p>
+                  <p className="text-[11px] text-[#64748B] font-medium uppercase tracking-tight">Class {student.class}-{student.section} • ID: {student.qr_code}</p>
+                </div>
+                <div className="p-2 bg-[#F8FAFC] rounded-lg">
+                  <QrCode size={18} className="text-[#4F46E5]" />
+                </div>
+              </div>
+            ))}
+
+            {hasMore && !debouncedSearch && (
+              <button 
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="w-full py-4 bg-white rounded-2xl border border-dashed border-gray-200 text-xs font-bold text-gray-500 hover:border-indigo-300 hover:text-indigo-600 transition-all flex items-center justify-center gap-2"
+              >
+                {loadingMore ? (
+                  <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  'LOAD MORE STUDENTS'
+                )}
+              </button>
+            )}
+          </>
         ) : (
           <div className="py-10 text-center text-gray-400 text-xs italic bg-white rounded-2xl border border-dashed border-gray-200">No students found</div>
         )}

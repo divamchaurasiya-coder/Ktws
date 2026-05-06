@@ -10,14 +10,19 @@ import ExcelJS from 'exceljs';
 
 export default function BooksView() {
   const [books, setBooks] = useState<any[]>([]);
+  const [totalBooks, setTotalBooks] = useState(0);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [showSmartAdd, setShowSmartAdd] = useState(false);
   const [smartScanLoading, setSmartScanLoading] = useState(false);
   const [scanResult, setScanResult] = useState<any>(null);
   const [manualBarcode, setManualBarcode] = useState('');
   const [manualMode, setManualMode] = useState(false);
-  const [search, setSearch] = useState('');
   const [selectedBook, setSelectedBookState] = useState<any>(null);
 
   const setSelectedBook = (book: any, pushState = true) => {
@@ -63,24 +68,54 @@ export default function BooksView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchBooks();
-    
-    // Global hooks for communication between views
-    (window as any).showBookDetails = (barcode: string) => {
-      setSearch(barcode);
-      // We don't automatically open it because handleBookClick needs the book object from the list
-      // But we can filter the list and if only one result, we could open it
-    };
-  }, []);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const fetchBooks = async () => {
+  useEffect(() => {
+    setPage(1);
+    fetchBooks(1, true);
+  }, [debouncedSearch]);
+
+  const fetchBooks = async (pageNum = 1, reset = false) => {
     try {
-      const data = await api.books.list();
-      setBooks(data);
+      if (pageNum === 1) setLoading(true);
+      else setLoadingMore(true);
+
+      let data;
+      if (debouncedSearch) {
+        data = await api.books.search(debouncedSearch);
+        setBooks(data);
+        setHasMore(false);
+        setTotalBooks(data.length);
+      } else {
+        const response = await api.books.list(pageNum, 20);
+        const { data: newBooks, total } = response;
+        
+        if (reset) {
+          setBooks(newBooks);
+        } else {
+          setBooks(prev => [...prev, ...newBooks]);
+        }
+        
+        setTotalBooks(total);
+        setHasMore(books.length + newBooks.length < total);
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchBooks(nextPage);
     }
   };
 
@@ -460,38 +495,61 @@ export default function BooksView() {
 
       <div className="space-y-3">
         {loading ? (
-          <div className="py-10 text-center animate-pulse text-[#94A3B8] text-xs">Loading catalog...</div>
-        ) : filtered.length > 0 ? (
-          filtered.map(book => (
-            <motion.div 
-              key={book.id} 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              onClick={() => handleBookClick(book)}
-              className="bg-white p-4 rounded-2xl border border-[#F1F5F9] shadow-xs flex items-start gap-4 active:bg-gray-50 transition-colors cursor-pointer"
-            >
-              <div className="w-12 h-16 bg-[#EEF2FF] rounded-xl flex items-center justify-center text-[#4F46E5] shrink-0 border border-[#E0E7FF]">
-                <BookOpen size={24} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[#1A1A1A] truncate">{book.title}</p>
-                <p className="text-[11px] text-[#64748B] font-medium truncate mb-2 leading-none">{book.author}</p>
-                <div className="flex items-center gap-2">
-                  <div className="px-2 py-0.5 bg-[#F1F5F9] rounded-full text-[9px] font-bold text-[#64748B] flex items-center gap-1 uppercase tracking-wider">
-                    <BarcodeIcon size={10} /> {book.barcode}
-                  </div>
-                  <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${book.available_copies > 0 ? 'bg-[#DCFCE7] text-[#10B981]' : 'bg-[#FEE2E2] text-[#EF4444]'}`}>
-                    {book.available_copies} / {book.total_copies} AVBL
-                  </div>
-                  {book.location_code && (
-                    <div className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 border border-indigo-100">
-                      <MapIcon size={10} /> {book.location_code}
-                    </div>
-                  )}
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="bg-white p-4 rounded-2xl border border-[#F1F5F9] shadow-xs flex items-start gap-4 animate-pulse">
+              <div className="w-12 h-16 bg-gray-100 rounded-xl shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-gray-100 rounded w-3/4" />
+                <div className="h-3 bg-gray-50 rounded w-1/2" />
+                <div className="flex gap-2 pt-2">
+                  <div className="h-4 bg-gray-50 rounded-full w-16" />
+                  <div className="h-4 bg-gray-50 rounded-full w-20" />
                 </div>
               </div>
-            </motion.div>
+            </div>
           ))
+        ) : books.length > 0 ? (
+          <>
+            {books.map(book => (
+              <motion.div 
+                key={book.id} 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                onClick={() => handleBookClick(book)}
+                className="bg-white p-4 rounded-2xl border border-[#F1F5F9] shadow-xs flex items-start gap-4 active:bg-gray-50 transition-colors cursor-pointer group"
+              >
+                <div className="w-12 h-16 bg-[#EEF2FF] rounded-xl flex items-center justify-center text-[#4F46E5] shrink-0 border border-[#E0E7FF] group-hover:scale-105 transition-transform">
+                  <BookOpen size={24} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-[#1A1A1A] truncate">{book.title}</p>
+                  <p className="text-[11px] text-[#64748B] font-medium truncate mb-2 leading-none">{book.author}</p>
+                  <div className="flex items-center gap-2">
+                    <div className="px-2 py-0.5 bg-[#F1F5F9] rounded-full text-[9px] font-bold text-[#64748B] flex items-center gap-1 uppercase tracking-wider">
+                      <BarcodeIcon size={10} /> {book.barcode}
+                    </div>
+                    <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${book.available_copies > 0 ? 'bg-[#DCFCE7] text-[#10B981]' : 'bg-[#FEE2E2] text-[#EF4444]'}`}>
+                      {book.available_copies} / {book.total_copies} AVBL
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+            
+            {hasMore && !debouncedSearch && (
+              <button 
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="w-full py-4 bg-white rounded-2xl border border-dashed border-gray-200 text-xs font-bold text-gray-500 hover:border-indigo-300 hover:text-indigo-600 transition-all flex items-center justify-center gap-2"
+              >
+                {loadingMore ? (
+                  <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  'LOAD MORE BOOKS'
+                )}
+              </button>
+            )}
+          </>
         ) : (
           <div className="py-10 text-center text-gray-400 text-xs italic bg-white rounded-2xl border border-dashed border-gray-200">No books in catalog</div>
         )}

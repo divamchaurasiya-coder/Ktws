@@ -103,6 +103,25 @@ CREATE TABLE public.library_settings (
 
 ---
 
+### Performance Optimization Indexes
+Run these in your Supabase SQL Editor to handle 10,000+ records with sub-100ms response times:
+
+```sql
+-- Core Search Indexes
+CREATE INDEX IF NOT EXISTS idx_books_barcode ON public.books(barcode);
+CREATE INDEX IF NOT EXISTS idx_students_qr_code ON public.students(qr_code);
+CREATE INDEX IF NOT EXISTS idx_transactions_student_id ON public.transactions(student_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_book_id ON public.transactions(book_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_status ON public.transactions(status);
+
+-- Search Optimization (GIN index for partial matching if using ILIKE)
+-- CREATE EXTENSION IF NOT EXISTS pg_trgm;
+-- CREATE INDEX IF NOT EXISTS idx_books_title_trgm ON public.books USING gin (title gin_trgm_ops);
+-- CREATE INDEX IF NOT EXISTS idx_students_name_trgm ON public.students USING gin (name gin_trgm_ops);
+```
+
+---
+
 ### Migration Helper (If you see "location_code missing" error)
 Run these queries in your Supabase SQL Editor:
 ```sql

@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import twilio from 'twilio';
+import Redis from 'ioredis';
 import 'dotenv/config';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -15,8 +16,39 @@ const __dirname = path.dirname(__filename);
 // Global instances for reuse across warm lambda invocations
 let appInstance: Express | null = null;
 let supabase: SupabaseClient | null = null;
+let redis: Redis | null = null;
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-ktws-library';
+
+// --- REDIS CONFIG ---
+const getRedis = () => {
+  if (redis) return redis;
+  const url = process.env.REDIS_URL;
+  if (!url) {
+    console.warn('[BACKEND] Redis configuration missing (REDIS_URL). Caching disabled.');
+    return null;
+  }
+  try {
+    redis = new Redis(url, {
+      maxRetriesPerRequest: 3,
+      retryStrategy: (times) => Math.min(times * 50, 2000),
+    });
+    console.log('[BACKEND] Redis client initialized.');
+    return redis;
+  } catch (e) {
+    console.error('[BACKEND] Redis initialization failed:', e);
+    return null;
+  }
+};
+
+// --- PAGINATION HELPER ---
+const getPagination = (page: any, limit: any) => {
+  const p = parseInt(page) || 1;
+  const l = parseInt(limit) || 20;
+  const from = (p - 1) * l;
+  const to = from + l - 1;
+  return { from, to, limit: l };
+};
 
 // --- WHATSAPP CONFIG ---
 const TWILIO_FROM = process.env.TWILIO_FROM_WHATSAPP || 'whatsapp:+14155238886';
@@ -59,6 +91,31 @@ const getTwilio = () => {
     }
   }
   return null;
+};
+
+// --- RATE LIMITER ---
+const rateLimiter = async (req: any, res: any, next: any) => {
+  const redis = getRedis();
+  if (!redis) return next();
+
+  const ip = req.headers['x-forwarded-for'] || req.ip;
+  const key = `rate_limit:${ip}`;
+  
+  try {
+    const current = await redis.get(key);
+    if (current && parseInt(current) > 100) { // Limit to 100 requests per minute per IP
+      return res.status(429).json({ error: 'Too many requests. Please try again in a minute.' });
+    }
+    
+    if (!current) {
+      await redis.setex(key, 60, 1);
+    } else {
+      await redis.incr(key);
+    }
+    next();
+  } catch (e) {
+    next(); // Fallback to allowing request if Redis fails
+  }
 };
 
 // --- WHATSAPP SERVICE ---
@@ -144,6 +201,7 @@ const initializeApp = () => {
   app.options('*', cors());
   app.use(express.json());
   app.use(cookieParser());
+  app.use(rateLimiter);
 
   // --- MIDDLEWARE ---
   const authenticate = (req: any, res: any, next: any) => {
@@ -260,8 +318,16 @@ const initializeApp = () => {
   studentsRouter.get('/', authenticate, async (req, res) => {
     const client = getSupabase();
     if (!client) return res.json([]);
-    const { data, error } = await client.from('students').select('*').order('name', { ascending: true });
-    res.json(error ? { error: error.message } : data);
+    const { page, limit } = req.query;
+    const { from, to } = getPagination(page, limit);
+
+    const { data, error, count } = await client
+      .from('students')
+      .select('*', { count: 'exact' })
+      .order('name', { ascending: true })
+      .range(from, to);
+      
+    res.json(error ? { error: error.message } : { data, total: count });
   });
 
   studentsRouter.get('/search', authenticate, async (req, res) => {
@@ -373,8 +439,16 @@ const initializeApp = () => {
   booksRouter.get('/', authenticate, async (req, res) => {
     const client = getSupabase();
     if (!client) return res.json([]);
-    const { data, error } = await client.from('books').select('*').order('title', { ascending: true });
-    res.json(error ? { error: error.message } : data);
+    const { page, limit } = req.query;
+    const { from, to } = getPagination(page, limit);
+
+    const { data, error, count } = await client
+      .from('books')
+      .select('*', { count: 'exact' })
+      .order('title', { ascending: true })
+      .range(from, to);
+
+    res.json(error ? { error: error.message } : { data, total: count });
   });
 
   booksRouter.get('/search', authenticate, async (req, res) => {
@@ -494,17 +568,29 @@ const initializeApp = () => {
   transRouter.get('/', authenticate, async (req, res) => {
     const client = getSupabase();
     if (!client) return res.json([]);
-    const { data, error } = await client.from('transactions').select('*, students(name, class, section, qr_code, parent_phone), books(title, author, barcode)').neq('status', 'returned').order('issue_date', { ascending: false });
+    const { page, limit } = req.query;
+    const { from, to } = getPagination(page, limit);
+
+    const { data, error, count } = await client
+      .from('transactions')
+      .select('*, students(name, class, section, qr_code, parent_phone), books(title, author, barcode)', { count: 'exact' })
+      .neq('status', 'returned')
+      .order('issue_date', { ascending: false })
+      .range(from, to);
+
     if (error) return res.status(500).json({ error: error.message });
-    res.json(data.map((t: any) => ({ 
-      ...t, 
-      student_name: t.students?.name, 
-      student_class: `${t.students?.class}-${t.students?.section}`,
-      student_qr: t.students?.qr_code,
-      student_parent_phone: t.students?.parent_phone,
-      book_title: t.books?.title,
-      book_barcode: t.books?.barcode
-    })));
+    res.json({
+      data: data.map((t: any) => ({ 
+        ...t, 
+        student_name: t.students?.name, 
+        student_class: `${t.students?.class}-${t.students?.section}`,
+        student_qr: t.students?.qr_code,
+        student_parent_phone: t.students?.parent_phone,
+        book_title: t.books?.title,
+        book_barcode: t.books?.barcode
+      })),
+      total: count
+    });
   });
 
   transRouter.post('/issue', authenticate, async (req: any, res: any) => {
@@ -696,11 +782,22 @@ const initializeApp = () => {
     if (!client) return res.status(503).json({ error: 'Offline' });
     const { code } = req.params;
 
+    const redis = getRedis();
+    if (redis) {
+      const cached = await redis.get(`lookup:${code}`);
+      if (cached) {
+        console.log(`[CACHE HIT] lookup:${code}`);
+        return res.json(JSON.parse(cached));
+      }
+    }
+
     try {
       // 1. Try Book
       const { data: book } = await client.from('books').select('*').eq('barcode', code).maybeSingle();
       if (book) {
-        return res.json({ type: 'book', data: book });
+        const result = { type: 'book', data: book };
+        if (redis) await redis.setex(`lookup:${code}`, 3600, JSON.stringify(result)); // Cache for 1h
+        return res.json(result);
       }
 
       // 2. Try Student
@@ -708,7 +805,9 @@ const initializeApp = () => {
       if (student) {
         // Also fetch active transactions for student
         const { data: active } = await client.from('transactions').select('*, books(title)').eq('student_id', student.id).neq('status', 'returned');
-        return res.json({ type: 'student', data: { ...student, active_books: active } });
+        const result = { type: 'student', data: { ...student, active_books: active } };
+        if (redis) await redis.setex(`lookup:${code}`, 3600, JSON.stringify(result));
+        return res.json(result);
       }
 
       res.status(404).json({ error: 'No record found matching this code.' });

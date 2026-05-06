@@ -6,22 +6,46 @@ import { format } from 'date-fns';
 
 export default function TransactionsView() {
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'issued' | 'overdue'>('all');
 
   useEffect(() => {
-    fetchTransactions();
-  }, []);
+    setPage(1);
+    fetchTransactions(1, true);
+  }, [filter]);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = async (pageNum = 1, reset = false) => {
     try {
-      const data = await api.transactions.list();
-      setTransactions(data);
+      if (pageNum === 1) setLoading(true);
+      else setLoadingMore(true);
+
+      const response = await api.transactions.list(pageNum, 20);
+      const { data: newTrans, total } = response;
+      
+      if (reset) {
+        setTransactions(newTrans);
+      } else {
+        setTransactions(prev => [...prev, ...newTrans]);
+      }
+      
+      setHasMore(transactions.length + newTrans.length < total);
     } catch (err) {
       console.error('Failed to fetch transactions:', err);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchTransactions(nextPage);
     }
   };
 
@@ -129,9 +153,16 @@ export default function TransactionsView() {
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 opacity-50">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-            <p className="text-gray-500 text-xs font-black uppercase tracking-widest">Loading history...</p>
+          <div className="space-y-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="bg-white p-6 rounded-2xl border border-[#F1F5F9] shadow-xs flex items-center gap-4 animate-pulse">
+                <div className="w-12 h-12 bg-gray-100 rounded-xl" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-gray-100 rounded w-1/4" />
+                  <div className="h-3 bg-gray-50 rounded w-1/2" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredTransactions.length === 0 ? (
           <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
@@ -139,7 +170,7 @@ export default function TransactionsView() {
             <p className="text-gray-400 text-xs font-black uppercase tracking-widest">No matching records</p>
           </div>
         ) : (
-          <div>
+          <div className="space-y-4">
             {/* Desktop View Table */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
@@ -318,6 +349,20 @@ export default function TransactionsView() {
                 </motion.div>
               ))}
             </div>
+
+            {hasMore && (
+              <button 
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="w-full py-4 bg-white rounded-2xl border border-dashed border-gray-200 text-xs font-bold text-gray-500 hover:border-blue-300 hover:text-blue-600 transition-all flex items-center justify-center gap-2 mt-4"
+              >
+                {loadingMore ? (
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  'LOAD MORE RECORDS'
+                )}
+              </button>
+            )}
           </div>
         )}
       </div>

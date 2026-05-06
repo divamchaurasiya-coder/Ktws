@@ -39,7 +39,7 @@ export const api = {
     lookup: (code: string) => apiFetch(`/api/lookup/${code}`),
   },
   students: {
-    list: () => apiFetch('/api/students'),
+    list: (page = 1, limit = 20) => apiFetch(`/api/students?page=${page}&limit=${limit}`),
     search: (q: string) => apiFetch(`/api/students/search?q=${encodeURIComponent(q)}`),
     getDetail: (id: string) => apiFetch(`/api/students/${id}`),
     create: (data: any) => apiFetch('/api/students', { method: 'POST', body: JSON.stringify(data) }),
@@ -53,7 +53,7 @@ export const api = {
     delete: (id: string) => apiFetch(`/api/teachers/${id}`, { method: 'DELETE' }),
   },
   books: {
-    list: () => apiFetch('/api/books'),
+    list: (page = 1, limit = 20) => apiFetch(`/api/books?page=${page}&limit=${limit}`),
     scan: (barcode: string) => apiFetch('/api/books/scan', {
       method: 'POST',
       body: JSON.stringify({ barcode })
@@ -74,7 +74,7 @@ export const api = {
   transactions: {
     issue: (data: { barcode: string; studentQR: string }) => apiFetch('/api/transactions/issue', { method: 'POST', body: JSON.stringify(data) }),
     return: (data: { barcode: string; studentQR: string }) => apiFetch('/api/transactions/return', { method: 'POST', body: JSON.stringify(data) }),
-    list: () => apiFetch('/api/transactions'),
+    list: (page = 1, limit = 20) => apiFetch(`/api/transactions?page=${page}&limit=${limit}`),
     syncOverdue: () => apiFetch('/api/transactions/sync-overdue', { method: 'POST' }),
   }
 };
