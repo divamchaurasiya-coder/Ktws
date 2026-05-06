@@ -177,7 +177,7 @@ export default function LibraryMapView() {
       `}>
         <div className={`
           flex-1 flex
-          ${config.layout === 'aisle' ? 'flex-nowrap gap-0.5 md:gap-1.5 justify-end' : 'flex-wrap gap-3 overflow-x-auto pb-2'}
+          ${config.layout === 'aisle' ? 'flex-nowrap gap-1.5 justify-end' : 'flex-wrap gap-3 overflow-x-auto pb-2'}
         `}>
           {SLOTS.map(slot => {
             const code = `${rack}-${slot.toString().padStart(2, '0')}`;
@@ -196,25 +196,25 @@ export default function LibraryMapView() {
                   setHighlightedCell(null);
                 }}
                 className={`
-                  rounded border-2 transition-all flex items-center justify-center shrink-0 relative
-                  ${config.layout === 'aisle' ? 'w-6 h-8 md:w-10 md:h-12' : 'w-10 h-10 md:w-12 md:h-12'}
+                  rounded-xl border-2 transition-all flex items-center justify-center shrink-0 relative
+                  ${config.layout === 'aisle' ? 'w-10 h-14' : 'w-12 h-12'}
                   ${isOccupied ? 'bg-red-50 border-red-200 shadow-sm' : 'bg-emerald-50 border-emerald-100 hover:border-emerald-300'}
-                  ${isSelected ? 'ring-2 md:ring-8 ring-indigo-500/20 border-indigo-600 !bg-indigo-600 !text-white z-20 scale-110 md:scale-125' : ''}
-                  ${isHighlighted ? 'animate-pulse ring-2 md:ring-8 ring-yellow-400 border-yellow-500 scale-125 md:scale-150 z-30' : ''}
+                  ${isSelected ? 'ring-8 ring-indigo-500/20 border-indigo-600 !bg-indigo-600 !text-white z-20 scale-125' : ''}
+                  ${isHighlighted ? 'animate-pulse ring-8 ring-yellow-400 border-yellow-500 scale-150 z-30' : ''}
                 `}
               >
                 {isOccupied && !isSelected && (
                   <motion.div 
                     layoutId={`indicator-${code}`}
-                    className="w-1 h-1 md:w-2 md:h-2 rounded-full bg-red-400 border border-white" 
+                    className="w-2.5 h-2.5 rounded-full bg-red-400 border-2 border-white" 
                   />
                 )}
                 {!isOccupied && !isSelected && (
-                  <div className="w-0.5 h-0.5 md:w-1.5 md:h-1.5 rounded-full bg-emerald-200 group-hover:bg-emerald-400 transition-colors" />
+                  <div className="w-2 h-2 rounded-full bg-emerald-200 group-hover:bg-emerald-400 transition-colors" />
                 )}
                 
                 {config.layout === 'aisle' && (
-                  <span className={`absolute -bottom-1 -right-0.5 text-[5px] md:text-[6px] font-black p-0.5 rounded ${isSelected ? 'text-white' : 'text-gray-300 shadow-sm'}`}>
+                  <span className={`absolute -bottom-1 -right-1 text-[8px] font-black p-0.5 rounded ${isSelected ? 'text-white' : 'text-gray-300 shadow-sm'}`}>
                     {slot}
                   </span>
                 )}
@@ -224,8 +224,8 @@ export default function LibraryMapView() {
         </div>
 
         <div className={`
-          shrink-0 flex items-center justify-center bg-gray-50 rounded-lg md:rounded-2xl text-[10px] md:text-xl font-black text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all border border-transparent group-hover:border-indigo-100
-          ${config.layout === 'aisle' ? 'w-8 h-8 md:w-10 md:h-10' : 'w-10 h-10 md:w-14 md:h-14'}
+          shrink-0 flex items-center justify-center bg-gray-50 rounded-2xl text-xl font-black text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all border border-transparent group-hover:border-indigo-100
+          ${config.layout === 'aisle' ? 'w-12 h-12 text-sm' : 'w-16 h-16'}
         `}>
           {rack}
         </div>
@@ -380,51 +380,52 @@ export default function LibraryMapView() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-10 items-start">
         {/* Visual Grid */}
-        <div className="lg:col-span-3 bg-white rounded-3xl md:rounded-[40px] p-4 md:p-10 shadow-2xl shadow-gray-200/50 border border-gray-50 overflow-x-auto flex flex-col">
-          <div className="min-w-fit mx-auto w-full">
+        <div className="lg:col-span-3 bg-white rounded-3xl md:rounded-[40px] p-6 md:p-10 shadow-2xl shadow-gray-200/50 border border-gray-50 overflow-x-auto">
+          <div className={`min-w-fit mx-auto ${config.layout === 'aisle' ? 'w-max' : 'w-full'}`}>
             {/* Column Labels */}
             <div className="flex mb-4 md:mb-8">
-              <div className="w-10 md:w-16 shrink-0" />
-              <div className={`flex-1 flex ${config.layout === 'aisle' ? 'flex-nowrap gap-0.5 md:gap-1.5 justify-end' : 'gap-3'}`}>
+              <div className="w-12 md:w-16 shrink-0" />
+              <div className={`flex-1 flex ${config.layout === 'aisle' ? 'flex-nowrap gap-1.5 justify-end' : 'gap-3'}`}>
                 {SLOTS.map(s => (
-                  <div key={s} className={`shrink-0 text-center text-[8px] md:text-[10px] font-black text-gray-300 uppercase tracking-widest ${config.layout === 'aisle' ? 'w-6 md:w-10' : 'w-10 md:w-12'}`}>
+                  <div key={s} className={`shrink-0 text-center text-[10px] font-black text-gray-300 uppercase tracking-widest ${config.layout === 'aisle' ? 'w-10' : 'w-12 md:w-12'}`}>
                     {s.toString().padStart(2, '0')}
                   </div>
                 ))}
               </div>
+              <div className="w-12 md:w-16 shrink-0" />
             </div>
 
             {/* Grid Rows - Layout Aware */}
             <div className={`
               ${config.layout === 'aisle' 
-                ? 'grid grid-cols-2 gap-x-6 md:gap-x-12 lg:gap-x-24 gap-y-6 md:gap-y-12 p-4 md:p-12 bg-gray-50 rounded-[32px] md:rounded-[48px] border-2 md:border-4 border-white shadow-inner relative min-w-fit' 
+                ? 'grid grid-cols-2 gap-x-12 lg:gap-x-24 gap-y-12 p-8 md:p-12 bg-gray-50 rounded-[48px] border-4 border-white shadow-inner relative' 
                 : 'space-y-6 md:space-y-8'}
             `}>
               {config.layout === 'aisle' && (
-                <div className="absolute left-1/2 top-6 bottom-6 w-px bg-dashed bg-gray-200 -translate-x-1/2 hidden md:block" />
+                <div className="absolute left-1/2 top-10 bottom-10 w-px bg-dashed bg-gray-200 -translate-x-1/2" />
               )}
               
               {config.layout === 'aisle' ? (
                 <>
                   {/* Left Column: K, J, I, H, G */}
-                  <div className="flex flex-col gap-6 md:gap-10 min-w-fit">
-                    <div className="flex justify-center mb-2 md:mb-4 pr-10 md:pr-14">
+                  <div className="flex flex-col gap-10">
+                    <div className="flex justify-center mb-4 pr-14">
                        <div className="flex flex-col items-center text-indigo-400">
-                          <ArrowUp size={16} className="md:w-5 md:h-5" />
-                          <div className="h-8 md:h-12 w-[1.5px] md:w-[2px] bg-indigo-100 rounded-full my-1" />
-                          <ArrowDown size={16} className="md:w-5 md:h-5" />
+                          <ArrowUp size={20} />
+                          <div className="h-12 w-[2px] bg-indigo-100 rounded-full my-1" />
+                          <ArrowDown size={20} />
                        </div>
                     </div>
                     {['K', 'J', 'I', 'H', 'G'].map(r => renderRack(r))}
                   </div>
 
                   {/* Right Column: F, E, D, C, B, A */}
-                  <div className="flex flex-col gap-6 md:gap-10 min-w-fit">
-                    <div className="flex justify-center mb-2 md:mb-4 pr-10 md:pr-14">
+                  <div className="flex flex-col gap-10">
+                    <div className="flex justify-center mb-4 pr-14">
                        <div className="flex flex-col items-center text-indigo-400">
-                          <ArrowUp size={16} className="md:w-5 md:h-5" />
-                          <div className="h-8 md:h-12 w-[1.5px] md:w-[2px] bg-indigo-100 rounded-full my-1" />
-                          <ArrowDown size={16} className="md:w-5 md:h-5" />
+                          <ArrowUp size={20} />
+                          <div className="h-12 w-[2px] bg-indigo-100 rounded-full my-1" />
+                          <ArrowDown size={20} />
                        </div>
                     </div>
                     {['F', 'E', 'D', 'C', 'B', 'A'].map(r => renderRack(r))}
