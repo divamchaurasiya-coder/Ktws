@@ -173,11 +173,11 @@ export default function LibraryMapView() {
     return (
       <div key={rack} className={`
         flex group
-        ${config.layout === 'aisle' ? 'flex-row items-center gap-2 md:gap-4' : 'flex-row items-center gap-6'}
+        ${config.layout === 'aisle' ? 'flex-row items-center gap-1.5 md:gap-4' : 'flex-row items-center gap-6'}
       `}>
         <div className={`
-          flex-1 flex flex-wrap
-          ${config.layout === 'aisle' ? 'gap-1 justify-end' : 'gap-3 overflow-x-auto pb-2'}
+          flex-1 flex
+          ${config.layout === 'aisle' ? 'flex-nowrap gap-1 md:gap-1.5 justify-end' : 'flex-wrap gap-3 overflow-x-auto pb-2'}
         `}>
           {SLOTS.map(slot => {
             const code = `${rack}-${slot.toString().padStart(2, '0')}`;
@@ -196,25 +196,25 @@ export default function LibraryMapView() {
                   setHighlightedCell(null);
                 }}
                 className={`
-                  rounded border-2 transition-all flex items-center justify-center shrink-0 relative
-                  ${config.layout === 'aisle' ? 'w-6 h-8 md:w-10 md:h-12' : 'w-10 h-10 md:w-12 md:h-12'}
+                  rounded-lg border-2 transition-all flex items-center justify-center shrink-0 relative
+                  ${config.layout === 'aisle' ? 'w-8 h-10 md:w-10 md:h-12' : 'w-10 h-10 md:w-12 md:h-12'}
                   ${isOccupied ? 'bg-red-50 border-red-200 shadow-sm' : 'bg-emerald-50 border-emerald-100 hover:border-emerald-300'}
-                  ${isSelected ? 'ring-4 md:ring-8 ring-indigo-500/20 border-indigo-600 !bg-indigo-600 !text-white z-20 scale-125' : ''}
-                  ${isHighlighted ? 'animate-pulse ring-4 md:ring-8 ring-yellow-400 border-yellow-500 scale-150 z-30' : ''}
+                  ${isSelected ? 'ring-4 md:ring-8 ring-indigo-500/20 border-indigo-600 !bg-indigo-600 !text-white z-20 scale-110 md:scale-125' : ''}
+                  ${isHighlighted ? 'animate-pulse ring-4 md:ring-8 ring-yellow-400 border-yellow-500 scale-125 md:scale-150 z-30' : ''}
                 `}
               >
                 {isOccupied && !isSelected && (
                   <motion.div 
                     layoutId={`indicator-${code}`}
-                    className="w-1 h-1 md:w-2 md:h-2 rounded-full bg-red-400 border border-white" 
+                    className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-red-400 border border-white" 
                   />
                 )}
                 {!isOccupied && !isSelected && (
-                  <div className="w-1 h-1 rounded-full bg-emerald-200 group-hover:bg-emerald-400 transition-colors" />
+                  <div className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full bg-emerald-200 group-hover:bg-emerald-400 transition-colors" />
                 )}
                 
                 {config.layout === 'aisle' && (
-                  <span className={`absolute -bottom-1 -right-0.5 text-[5px] md:text-[6px] font-black p-0.5 rounded ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                  <span className={`absolute -bottom-1 -right-0.5 text-[6px] font-black p-0.5 rounded ${isSelected ? 'text-white' : 'text-gray-300 shadow-sm'}`}>
                     {slot}
                   </span>
                 )}
@@ -224,8 +224,8 @@ export default function LibraryMapView() {
         </div>
 
         <div className={`
-          shrink-0 flex items-center justify-center bg-gray-50 rounded-lg md:rounded-2xl text-xs md:text-xl font-black text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all border border-transparent group-hover:border-indigo-100
-          ${config.layout === 'aisle' ? 'w-6 h-6 md:w-10 md:h-10' : 'w-10 h-10 md:w-14 md:h-14'}
+          shrink-0 flex items-center justify-center bg-gray-50 rounded-lg md:rounded-2xl text-[10px] md:text-xl font-black text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all border border-transparent group-hover:border-indigo-100
+          ${config.layout === 'aisle' ? 'w-8 h-8 md:w-10 md:h-10' : 'w-10 h-10 md:w-14 md:h-14'}
         `}>
           {rack}
         </div>
@@ -238,14 +238,14 @@ export default function LibraryMapView() {
       {/* Header & Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl md:text-4xl font-black text-[#1A1A1A] tracking-tighter flex items-center gap-4">
-            <div className="w-12 h-12 md:w-14 md:h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-2xl shadow-indigo-200 text-lg md:text-2xl">
-              <MapIcon size={24} className="md:w-[28px] md:h-[28px]" />
+          <h1 className="text-2xl md:text-4xl font-black text-[#1A1A1A] tracking-tighter flex items-center gap-3 md:gap-4">
+            <div className="w-10 h-10 md:w-14 md:h-14 bg-indigo-600 rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-2xl shadow-indigo-200 text-base md:text-2xl">
+              <MapIcon size={20} className="md:w-[28px] md:h-[28px]" />
             </div>
             LIBRARY MAP
           </h1>
-          <div className="flex items-center gap-3 mt-2">
-            <p className="text-gray-500 font-bold text-sm">Visual Shelf Navigator</p>
+          <div className="flex items-center gap-2 md:gap-3 mt-1.5 md:mt-2">
+            <p className="text-gray-500 font-bold text-[10px] md:text-sm">Visual Shelf Navigator</p>
             <div className="h-1 w-1 bg-gray-300 rounded-full" />
             <button 
               onClick={() => setShowSettings(!showSettings)}
@@ -384,10 +384,10 @@ export default function LibraryMapView() {
           <div className="min-w-fit mx-auto w-full">
             {/* Column Labels */}
             <div className="flex mb-4 md:mb-8">
-              <div className="w-10 md:w-16" /> {/* Space for row labels */}
-              <div className="flex-1 flex gap-1 md:gap-3">
+              <div className="w-10 md:w-16 shrink-0" />
+              <div className={`flex-1 flex ${config.layout === 'aisle' ? 'flex-nowrap gap-1 md:gap-1.5' : 'gap-3'}`}>
                 {SLOTS.map(s => (
-                  <div key={s} className={`shrink-0 text-center text-[8px] md:text-[10px] font-black text-gray-300 uppercase tracking-widest ${config.layout === 'aisle' ? 'w-full flex-1' : 'w-10 md:w-12'}`}>
+                  <div key={s} className={`shrink-0 text-center text-[8px] md:text-[10px] font-black text-gray-300 uppercase tracking-widest ${config.layout === 'aisle' ? 'flex-1' : 'w-10 md:w-12'}`}>
                     {s.toString().padStart(2, '0')}
                   </div>
                 ))}
@@ -397,11 +397,11 @@ export default function LibraryMapView() {
             {/* Grid Rows - Layout Aware */}
             <div className={`
               ${config.layout === 'aisle' 
-                ? 'grid grid-cols-1 md:grid-cols-2 gap-x-6 lg:gap-x-24 gap-y-8 md:gap-y-12 p-4 md:p-12 bg-gray-50 rounded-[32px] md:rounded-[48px] border-4 border-white shadow-inner relative' 
+                ? 'grid grid-cols-2 gap-x-6 md:gap-x-12 lg:gap-x-24 gap-y-6 md:gap-y-12 p-4 md:p-12 bg-gray-50 rounded-[32px] md:rounded-[48px] border-2 md:border-4 border-white shadow-inner relative' 
                 : 'space-y-6 md:space-y-8'}
             `}>
               {config.layout === 'aisle' && (
-                <div className="absolute left-1/2 top-10 bottom-10 w-px bg-dashed bg-gray-200 -translate-x-1/2 hidden md:block" />
+                <div className="absolute left-1/2 top-6 bottom-6 w-px bg-dashed bg-gray-200 -translate-x-1/2 hidden md:block" />
               )}
               
               {config.layout === 'aisle' ? (
@@ -411,7 +411,7 @@ export default function LibraryMapView() {
                     <div className="flex justify-center mb-2 md:mb-4">
                        <div className="flex flex-col items-center text-indigo-400">
                           <ArrowUp size={16} className="md:w-5 md:h-5" />
-                          <div className="h-8 md:h-12 w-[2px] bg-indigo-100 rounded-full my-1" />
+                          <div className="h-8 md:h-12 w-[1.5px] md:w-[2px] bg-indigo-100 rounded-full my-1" />
                           <ArrowDown size={16} className="md:w-5 md:h-5" />
                        </div>
                     </div>
@@ -419,12 +419,12 @@ export default function LibraryMapView() {
                   </div>
 
                   {/* Right Column: F, E, D, C, B, A */}
-                  <div className="flex flex-col gap-6 md:gap-10">
-                    <div className="flex justify-center mb-2 md:mb-4">
+                  <div className="flex flex-col gap-4 md:gap-10">
+                    <div className="flex justify-center mb-1 md:mb-4">
                        <div className="flex flex-col items-center text-indigo-400">
-                          <ArrowUp size={16} className="md:w-5 md:h-5" />
-                          <div className="h-8 md:h-12 w-[2px] bg-indigo-100 rounded-full my-1" />
-                          <ArrowDown size={16} className="md:w-5 md:h-5" />
+                          <ArrowUp size={12} className="md:w-5 md:h-5" />
+                          <div className="h-4 md:h-12 w-[1px] md:w-[2px] bg-indigo-100 rounded-full my-0.5 md:my-1" />
+                          <ArrowDown size={12} className="md:w-5 md:h-5" />
                        </div>
                     </div>
                     {['F', 'E', 'D', 'C', 'B', 'A'].map(r => renderRack(r))}
@@ -436,24 +436,24 @@ export default function LibraryMapView() {
             </div>
 
             {/* Legend */}
-            <div className="flex flex-wrap gap-8 mt-16 pt-10 border-t-2 border-gray-50">
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 bg-emerald-50 border-2 border-emerald-100 rounded-lg" />
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Available Spot</span>
+            <div className="flex flex-wrap gap-4 md:gap-8 mt-8 md:mt-16 pt-6 md:pt-10 border-t-2 border-gray-50">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="w-4 h-4 md:w-6 md:h-6 bg-emerald-50 border-[1px] md:border-2 border-emerald-100 rounded-md md:rounded-lg" />
+                <span className="text-[7px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest">Available</span>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 bg-red-50 border-2 border-red-200 rounded-lg flex items-center justify-center">
-                  <div className="w-2 h-2 bg-red-400 rounded-full" />
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="w-4 h-4 md:w-6 md:h-6 bg-red-50 border-[1px] md:border-2 border-red-200 rounded-md md:rounded-lg flex items-center justify-center">
+                  <div className="w-1 h-1 md:w-2 md:h-2 bg-red-400 rounded-full" />
                 </div>
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Occupied Spot</span>
+                <span className="text-[7px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest">Occupied</span>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 bg-indigo-600 border-2 border-indigo-700 rounded-lg" />
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Selected Spot</span>
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="w-4 h-4 md:w-6 md:h-6 bg-indigo-600 border-[1px] md:border-2 border-indigo-700 rounded-md md:rounded-lg" />
+                <span className="text-[7px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest">Selected</span>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 ring-4 ring-yellow-400 border-2 border-yellow-500 rounded-lg animate-pulse" />
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Search Highlight</span>
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="w-4 h-4 md:w-6 md:h-6 ring-2 md:ring-4 ring-yellow-400 border-[1px] md:border-2 border-yellow-500 rounded-md md:rounded-lg animate-pulse" />
+                <span className="text-[7px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest">Highlight</span>
               </div>
             </div>
           </div>
@@ -471,35 +471,35 @@ export default function LibraryMapView() {
                 className="bg-white rounded-3xl md:rounded-[40px] p-6 md:p-10 shadow-2xl shadow-indigo-100/50 border border-white"
               >
                 <div className="flex items-center justify-between mb-8">
-                  <div className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-2xl text-xs font-black uppercase tracking-widest">
+                  <div className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest">
                     BIN {selectedCell}
                   </div>
                   {locationMap[selectedCell] ? (
-                    <div className="bg-emerald-50 text-emerald-600 p-3 rounded-2xl">
-                      <CheckCircle2 size={24} />
+                    <div className="bg-emerald-50 text-emerald-600 p-2 md:p-3 rounded-xl md:rounded-2xl">
+                      <CheckCircle2 size={18} className="md:w-6 md:h-6" />
                     </div>
                   ) : (
-                    <div className="bg-gray-50 text-gray-300 p-3 rounded-2xl">
-                      <MousePointer2 size={24} />
+                    <div className="bg-gray-50 text-gray-300 p-2 md:p-3 rounded-xl md:rounded-2xl">
+                      <MousePointer2 size={18} className="md:w-6 md:h-6" />
                     </div>
                   )}
                 </div>
 
                 {locationMap[selectedCell] ? (
-                  <div className="space-y-8">
+                  <div className="space-y-6 md:space-y-8">
                     <div>
-                      <h3 className="text-2xl font-black text-gray-900 leading-tight tracking-tight">
+                      <h3 className="text-xl md:text-2xl font-black text-gray-900 leading-tight tracking-tight">
                         {locationMap[selectedCell].title}
                       </h3>
-                      <p className="text-gray-500 font-bold mt-2 flex items-center gap-2">
-                        <span className="text-indigo-600">by</span> {locationMap[selectedCell].author}
+                      <p className="text-gray-500 font-bold mt-1 md:mt-2 flex items-center gap-2 text-xs md:text-base">
+                        <span className="text-indigo-600 font-black">by</span> {locationMap[selectedCell].author}
                       </p>
                     </div>
 
-                    <div className="space-y-4">
-                      <div className="p-5 bg-gray-50 rounded-3xl border border-gray-100 group transition-all hover:bg-white hover:border-indigo-100 hover:shadow-lg hover:shadow-indigo-50">
-                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Catalog ID</div>
-                        <div className="font-mono font-bold text-gray-900 text-lg group-hover:text-indigo-600">
+                    <div className="space-y-3 md:space-y-4">
+                      <div className="p-4 md:p-5 bg-gray-50 rounded-2xl md:rounded-3xl border border-gray-100 group transition-all hover:bg-white hover:border-indigo-100 hover:shadow-lg hover:shadow-indigo-50">
+                        <div className="text-[8px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5 md:mb-1">Catalog ID</div>
+                        <div className="font-mono font-bold text-gray-900 text-base md:text-lg group-hover:text-indigo-600">
                           {locationMap[selectedCell].barcode}
                         </div>
                       </div>
@@ -507,9 +507,9 @@ export default function LibraryMapView() {
 
                     <button 
                       onClick={() => (window as any).showBookDetails?.(locationMap[selectedCell].barcode)}
-                      className="w-full py-5 bg-indigo-600 text-white rounded-[24px] font-black text-sm shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-3"
+                      className="w-full py-4 md:py-5 bg-indigo-600 text-white rounded-2xl md:rounded-[24px] font-black text-xs md:text-sm shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2 md:gap-3"
                     >
-                      <Info size={18} /> FULL CATALOG INFO
+                      <Info size={16} className="md:w-[18px] md:h-[18px]" /> FULL CATALOG INFO
                     </button>
                     
                     <button 
@@ -607,16 +607,16 @@ export default function LibraryMapView() {
           <div className="bg-gray-900 rounded-3xl md:rounded-[40px] p-6 md:p-10 text-white overflow-hidden relative group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/20 blur-3xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000" />
             <div className="relative z-10">
-              <div className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-6">Real-time Occupancy</div>
-              <div className="space-y-6">
+              <div className="text-[8px] md:text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4 md:mb-6">Real-time Occupancy</div>
+              <div className="space-y-4 md:space-y-6">
                 <div>
-                  <div className="flex items-end justify-between mb-3">
-                    <div className="text-5xl font-black tracking-tighter">
+                  <div className="flex items-end justify-between mb-2 md:mb-3">
+                    <div className="text-3xl md:text-5xl font-black tracking-tighter">
                       {Math.round((Object.keys(locationMap).length / (config.racks.length * config.slots_per_rack)) * 100)}%
                     </div>
-                    <div className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-1.5">Full</div>
+                    <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1 md:mb-1.5">Full</div>
                   </div>
-                  <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                  <div className="w-full h-3 md:h-4 bg-white/5 rounded-full overflow-hidden border border-white/5">
                     <motion.div 
                       layout
                       initial={{ width: 0 }}
@@ -625,7 +625,7 @@ export default function LibraryMapView() {
                     />
                   </div>
                 </div>
-                <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                <div className="flex justify-between text-[8px] md:text-[10px] font-black text-gray-500 uppercase tracking-widest">
                   <span>{Object.keys(locationMap).length} Occupied</span>
                   <span>{(config.racks.length * config.slots_per_rack) - Object.keys(locationMap).length} Empty</span>
                 </div>
