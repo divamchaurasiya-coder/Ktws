@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { Home, Scan, RotateCcw, Users, BookOpen, LogOut, History, User, Shield, Map } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api } from '../lib/api';
@@ -12,7 +12,24 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, activeTab, onTabChange, user, onLogout }: LayoutProps) {
-  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showProfileModal, setShowProfileModalState] = useState(false);
+
+  const setShowProfileModal = (show: boolean, pushState = true) => {
+    setShowProfileModalState(show);
+    if (show && pushState) {
+      window.history.pushState({ modal: 'profile' }, '', window.location.hash);
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (!event.state || !event.state.modal) {
+        setShowProfileModalState(false);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const handleLogout = async () => {
     try {

@@ -15,12 +15,42 @@ import LoginView from './views/LoginView';
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTabState] = useState('home');
+
+  // Handle tab changes with history push
+  const setActiveTab = (tab: string, pushState = true) => {
+    setActiveTabState(tab);
+    if (pushState) {
+      window.history.pushState({ tab }, '', `#${tab}`);
+    }
+  };
 
   useEffect(() => {
     checkAuth();
     (window as any).setActiveTab = setActiveTab;
     
+    // Handle browser back/forward buttons
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state && event.state.tab) {
+        setActiveTabState(event.state.tab);
+      } else {
+        // Default to home or hash-based tab
+        const hash = window.location.hash.replace('#', '');
+        setActiveTabState(hash || 'home');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
+    // Initial State handling
+    const initialHash = window.location.hash.replace('#', '');
+    if (initialHash) {
+      setActiveTab(initialHash, false);
+      window.history.replaceState({ tab: initialHash }, '', `#${initialHash}`);
+    } else {
+      window.history.replaceState({ tab: 'home' }, '', '#home');
+    }
+
     // Bridge for cross-view navigation
     const originalShowDetails = (window as any).showBookDetails;
     (window as any).showBookDetails = (barcode: string) => {
@@ -31,6 +61,10 @@ export default function App() {
            (window as any).showBookDetails(barcode);
         }
       }, 100);
+    };
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
     };
   }, []);
 

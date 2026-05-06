@@ -14,7 +14,24 @@ export default function LibraryMapView() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [selectedCell, setSelectedCell] = useState<string | null>(null);
+  const [selectedCell, setSelectedCellState] = useState<string | null>(null);
+
+  const setSelectedCell = (cell: string | null, pushState = true) => {
+    setSelectedCellState(cell);
+    if (cell && pushState) {
+      window.history.pushState({ modal: 'map-detail', id: cell }, '', window.location.hash);
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (!event.state || event.state.modal !== 'map-detail') {
+        setSelectedCellState(null);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const [highlightedCell, setHighlightedCell] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [assigningLoading, setAssigningLoading] = useState(false);

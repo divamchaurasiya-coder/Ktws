@@ -18,7 +18,25 @@ export default function BooksView() {
   const [manualBarcode, setManualBarcode] = useState('');
   const [manualMode, setManualMode] = useState(false);
   const [search, setSearch] = useState('');
-  const [selectedBook, setSelectedBook] = useState<any>(null);
+  const [selectedBook, setSelectedBookState] = useState<any>(null);
+
+  const setSelectedBook = (book: any, pushState = true) => {
+    setSelectedBookState(book);
+    if (book && pushState) {
+      window.history.pushState({ modal: 'book-detail', id: book.barcode }, '', window.location.hash);
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (!event.state || (event.state.modal !== 'book-detail' && event.state.modal !== 'book-edit')) {
+        setSelectedBookState(null);
+        setIsEditing(false);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const [detailLoading, setDetailLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<any>(null);
